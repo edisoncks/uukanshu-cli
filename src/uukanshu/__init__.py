@@ -216,7 +216,23 @@ def fetch(url: str) -> str:
                 # the response is closed.
                 encoding = r.headers.get("Content-Encoding", "").lower()
                 if encoding == "gzip":
-                    body = gzip.decompress(r.read(_MAX_BYTES + 1))
+                    # Streamed with an incremental cap: gzip.decompress() on
+                    # 10MB of compressed zeros would OOM (~10GB) before any
+                    # length check runs. Truncated bodies raise EOFError here
+                    # (retried below like before).
+                    chunks = []
+                    total = 0
+                    with gzip.GzipFile(fileobj=r) as gz:
+                        while True:
+                            chunk = gz.read(64 * 1024)
+                            if not chunk:
+                                break
+                            total += len(chunk)
+                            if total > _MAX_BYTES:
+                                raise RuntimeError(f"response from {url} exceeds "
+                                                   f"{_MAX_BYTES // (1024 * 1024)} MB")
+                            chunks.append(chunk)
+                    body = b"".join(chunks)
                 elif encoding in ("", "identity"):
                     body = r.read(_MAX_BYTES + 1)
                 else:
