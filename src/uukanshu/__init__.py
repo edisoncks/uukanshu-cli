@@ -350,7 +350,9 @@ def latest_release_version(timeout: float = 5) -> str | None:
                      "User-Agent": HEADERS["User-Agent"]})
         with urllib.request.urlopen(req, timeout=timeout,
                                         context=_SSL_CONTEXT) as r:
-            raw = r.read(64 * 1024)
+            raw = r.read(_MAX_BYTES + 1)
+        if len(raw) > _MAX_BYTES:
+            return None
         try:
             tag = json.loads(raw.decode("utf-8", errors="replace")).get(
                 "tag_name")
