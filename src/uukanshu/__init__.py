@@ -825,7 +825,13 @@ class Reader(App):
         self._render(*self._raw)
         if (self.chapters_cache and self._cache_book == self.book_id
                 and isinstance(self.screen, TocScreen)):
+            # Preserve browsing position: populate() re-highlights the
+            # current chapter, which would discard where the user was.
+            ol = self.screen.query_one(OptionList)
+            old = ol.highlighted
             self.screen.populate(self._toc_converted(self.chapters_cache))
+            if old is not None and ol.option_count:
+                ol.highlighted = min(max(old, 0), ol.option_count - 1)
             self.screen.query_one("#tochead", Static).update(
                 self.ui("章节目录 / Chapters — ↑↓/d/u · Enter jump · Esc close"))
 
