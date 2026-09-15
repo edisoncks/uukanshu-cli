@@ -381,7 +381,7 @@ def absolutize(href: str, url: str) -> str:
     return urljoin(url, href)
 
 
-_CHAPTER_HREF = re.compile(rf"(?:{re.escape(BASE)})?/book/\d+/\d+\.html")
+_CHAPTER_HREF = re.compile(r"(?:https?://(?:www\.)?uukanshu\.cc)?/book/\d+/\d+\.html")
 
 
 def link(page: str, url: str, label: str):
@@ -418,7 +418,7 @@ def chapter_list(toc_page: str, book_id: str | None = None):
     hrefs may be site-relative or absolute.
     """
     matches = list(re.finditer(
-        r'href=["\'](?:' + re.escape(BASE) + r')?(/book/(\d+)/(\d+)\.html)["\']'
+        r'href=["\'](?:https?://(?:www\.)?uukanshu\.cc)?(/book/(\d+)/(\d+)\.html)["\']'
         r'[^>]*>\s*([^<]+?)\s*</a>',
         toc_page, re.I))
     # Compare book ids numerically so "--book 00123" matches "/book/123/"
