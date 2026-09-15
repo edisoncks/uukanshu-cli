@@ -908,6 +908,10 @@ def resolve_start_url(args):
         sys.exit(f"error: url must start with http:// or https:// — "
                  f"got {args.url!r}")
     book_url = book_url_from_arg(args.url)
+    book_arg = args.book.strip() if args.book and args.book.strip() else None
+    if args.url and book_arg:
+        sys.exit(f"error: got both a URL ({args.url!r}) and --book {args.book!r} — "
+                 f"give one or the other")
     if book_url:
         book_id = re.search(r"/book/(\d+)/", book_url).group(1)
         chapters = chapter_list(fetch(book_url), book_id)
@@ -1060,6 +1064,15 @@ def run():
     if args.list:
         book_url = book_url_from_arg(args.url)
         book_arg = args.book.strip() if args.book and args.book.strip() else None
+        if args.url and book_arg:
+            sys.exit(f"error: got both a URL ({args.url!r}) and --book {args.book!r} — "
+                     f"give one or the other")
+        if args.chapter is not None:
+            sys.exit(f"error: --chapter {args.chapter} is ignored with --list — "
+                     f"drop --chapter or drop --list")
+        if args.plain:
+            sys.exit("error: --print is ignored with --list — "
+                     "drop --print or drop --list")
         if not book_url and not book_arg:
             sys.exit("error: --list needs a book URL or --book <id>.")
         if book_url:
