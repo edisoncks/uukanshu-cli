@@ -898,8 +898,6 @@ def resolve_start_url(args):
     if args.url and not args.url.strip().startswith(("http://", "https://")):
         sys.exit(f"error: url must start with http:// or https:// — "
                  f"got {args.url!r}")
-        sys.exit(f"error: url must start with http:// or https:// — "
-                 f"got {args.url!r}")
     book_url = book_url_from_arg(args.url)
     if book_url:
         book_id = re.search(r"/book/(\d+)/", book_url).group(1)
