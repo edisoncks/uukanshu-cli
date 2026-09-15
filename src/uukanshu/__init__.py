@@ -951,7 +951,7 @@ def _force_utf8_stdio():
             # AttributeError on None and silently left a non-UTF-8 pipe.
             if enc is None or enc.lower() not in ("utf-8", "utf8"):
                 stream.reconfigure(encoding="utf-8")
-        except (AttributeError, OSError):
+        except (AttributeError, OSError, ValueError):
             pass
 
 
