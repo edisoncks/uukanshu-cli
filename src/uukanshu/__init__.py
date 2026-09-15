@@ -80,7 +80,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from textual import work
 from textual.app import App, ComposeResult
@@ -875,8 +875,17 @@ def book_url_from_arg(url: str):
     # Strip pasted whitespace; accept http and www variants and normalize
     # to the canonical https BASE form. Without this, pasted URLs with
     # spaces or http:// were misclassified as chapter URLs.
-    url = (url or "").strip()
-    m = re.fullmatch(r"https?://(?:www\.)?uukanshu\.cc/book/(\d+)/?(?:index\.html)?", url)
+    # Drop query/fragment (tracking params, #tuijian) before matching so a
+    # pasted book URL with ?utm_* or #frag still opens the book instead of
+    # failing as a chapter. Require '/' before index.html so
+    # .../book/123index.html is not mistaken for book 123.
+    raw = (url or "").strip()
+    try:
+        parts = urlsplit(raw)
+    except ValueError:
+        return None
+    clean = urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+    m = re.fullmatch(r"https?://(?:www\.)?uukanshu\.cc/book/(\d+)(?:/(?:index\.html)?)?", clean)
     return f"{BASE}/book/{int(m.group(1))}/" if m else None
 
 
