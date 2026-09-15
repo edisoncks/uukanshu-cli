@@ -914,10 +914,11 @@ def resolve_start_url(args):
                      f"chapter URL — drop --chapter or start from the "
                      f"book URL / --book <id>")
         return args.url, None
-    if not args.book:
+    if not (args.book and args.book.strip()):
         sys.exit("error: give a chapter URL or --book <id> (see --help).")
-    page = fetch(f"{BASE}/book/{args.book}/")
-    chapters = chapter_list(page, args.book)
+    book = args.book.strip()
+    page = fetch(f"{BASE}/book/{book}/")
+    chapters = chapter_list(page, book)
     if not chapters:
         sys.exit("error: no chapters found on the book page.")
     _check_chapter(args.chapter or 1, len(chapters))
@@ -1049,13 +1050,14 @@ def run():
 
     if args.list:
         book_url = book_url_from_arg(args.url)
-        if not book_url and not args.book:
+        book_arg = args.book.strip() if args.book and args.book.strip() else None
+        if not book_url and not book_arg:
             sys.exit("error: --list needs a book URL or --book <id>.")
         if book_url:
             toc_url, book_id = (book_url,
                                 re.search(r"/book/(\d+)/", book_url).group(1))
         else:
-            toc_url, book_id = f"{BASE}/book/{args.book}/", args.book
+            toc_url, book_id = f"{BASE}/book/{book_arg}/", book_arg
         chapters = chapter_list(fetch(toc_url), book_id)
         if not chapters:
             sys.exit(f"error: no chapters found at {toc_url}.")
