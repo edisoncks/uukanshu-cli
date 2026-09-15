@@ -960,7 +960,7 @@ def _env_int(name: str, default: int, minimum: int | None = None) -> int:
 def _env_theme() -> str:
     """UUKANSHU_THEME, validated — argparse checks flag values against
     `choices` but never validates an env-injected default."""
-    raw = os.environ.get("UUKANSHU_THEME", "night")
+    raw = os.environ.get("UUKANSHU_THEME", "night").strip()
     if raw not in {t.name for t in READER_THEMES}:
         sys.exit("error: UUKANSHU_THEME must be one of: "
                  + ", ".join(t.name for t in READER_THEMES)
