@@ -524,8 +524,9 @@ def extract_chapter(page: str, url: str):
     # Cut at the nav-row container: from the "上一章 / 章节目录 / 下一章"
     # box to the end of the page it's all UI/footer noise — the keyboard
     # tip, the copyright blurb, the "Copyright ... TOP↑" footer, and the
-    # GTM iframe/noscript leftovers — never chapter text.
-    body = re.split(r'<div\s+class=["\']mulu-box["\']', body, maxsplit=1)[0]
+    # GTM iframe/noscript leftovers — never chapter text. Case-insensitive
+    # like the readcotent search above; see SCRAPING.md.
+    body = re.split(r'<div\s+class=["\']mulu-box["\']', body, maxsplit=1, flags=re.I)[0]
     body = re.sub(r"<script[^>]*>.*?</script>", "", body, flags=re.S | re.I)
     body = re.sub(r"<br\s*/?>", "\n", body, flags=re.I)
     body = re.sub(r"<[^>]+>", "", body)
