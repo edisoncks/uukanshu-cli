@@ -15,7 +15,7 @@ fetching/parsing live in [SCRAPING.md](SCRAPING.md).
 - `chapter_id(url)`, `book_url_from_arg(url)`, `absolutize(href, url)`: URL helpers. Book URLs accept `http(s)`, `www` (any case), trailing `/index.html`, query/fragment stripped, host lowercased; chapter URLs stripped of pasted whitespace.
 - `TocScreen` / `TocOptionList`: modal chapter picker. Opens scrolled to current chapter (`scroll_to_highlight(top=True)`); `d/u` move half-page with selection.
 - `Reader(App)`: Textual reader. `load_chapter` (`@work exclusive, group="nav"`), `fetch_toc` (`group="toc"`), `check_update` (`group="update"`). Never raises into TUI — fetch errors render in-pane.
-- `run()` / `main()`: argparse CLI + `resolve_start_url()` + env helpers. `main()` forces UTF-8 stdio, maps `KeyboardInterrupt` → 130, `BrokenPipeError` → 0, `RuntimeError/OSError/UnicodeError` → `error: ...`.
+- `run()` / `main()`: argparse CLI + `resolve_start_url()` + `_book_target()` shared URL-vs-`--book` validation + env helpers. `main()` forces UTF-8 stdio, maps `KeyboardInterrupt` → 130, `BrokenPipeError` → 0, `RuntimeError/OSError/UnicodeError` → `error: ...`.
 
 ## CLI resolution
 

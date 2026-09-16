@@ -185,3 +185,11 @@ def test_resolve_rejects_bare_host():
     import pytest
     with pytest.raises(SystemExit):
         u.resolve_start_url(_Args(url="uukanshu.cc/book/123/"))
+
+
+def test_book_target_shared_validation():
+    import pytest
+    # Whitespace-only URL counts as no URL.
+    assert u._book_target("   ", "123") == (None, "123")
+    with pytest.raises(SystemExit):
+        u._book_target("https://uukanshu.cc/book/123/", "123")

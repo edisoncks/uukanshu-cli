@@ -328,7 +328,7 @@ def _update_cache_path() -> str:
     return os.path.join(base, "uukanshu", "update.json")
 
 
-def _load_cached_latest(now: float | None = None):
+def _load_cached_latest():
     """(latest, checked_at) from cache, or (None, None). Corrupt cache
     is ignored — the check simply refetches."""
     try:
@@ -592,7 +592,8 @@ class TocScreen(ModalScreen):
         Binding("u", "half(-1)", "up", priority=True),
     ]
 
-    def __init__(self, current_url, ui=None):
+    def __init__(self, current_url: str, ui=None):
+        """ui is Reader.ui bound method reflecting `simplified`; see ARCHITECTURE.md."""
         super().__init__()
         self.chapters = []
         self._loaded = False
@@ -940,6 +941,16 @@ class Reader(App):
 
 # ---------------------------------------------------------------- CLI
 
+def _book_target(url, book):
+    """Shared URL-vs---book validation; see ARCHITECTURE.md CLI resolution."""
+    book_url = book_url_from_arg(url)
+    book_arg = book.strip() if book and book.strip() else None
+    if url and (url or "").strip() and book_arg:
+        sys.exit(f"error: got both a URL ({url!r}) and --book {book!r} — "
+                 f"give one or the other")
+    return book_url, book_arg
+
+
 def book_url_from_arg(url: str):
     """Return the book index URL if `url` is one (e.g. .../book/123/ or
     .../book/123/index.html), else None. Chapter URLs never match."""
@@ -982,11 +993,7 @@ def resolve_start_url(args):
     if url and not url.startswith(("http://", "https://")):
         sys.exit(f"error: url must start with http:// or https:// — "
                  f"got {args.url!r}")
-    book_url = book_url_from_arg(url)
-    book_arg = args.book.strip() if args.book and args.book.strip() else None
-    if url and book_arg:
-        sys.exit(f"error: got both a URL ({args.url!r}) and --book {args.book!r} — "
-                 f"give one or the other")
+    book_url, book_arg = _book_target(args.url, args.book)
     chapter_n = 1 if args.chapter is None else args.chapter
     if book_url:
         book_id = re.search(r"/book/(\d+)/", book_url).group(1)
@@ -1138,11 +1145,7 @@ def run():
                        "is OpenCC installed with its dictionaries?")
 
     if args.list:
-        book_url = book_url_from_arg(args.url)
-        book_arg = args.book.strip() if args.book and args.book.strip() else None
-        if args.url and book_arg:
-            sys.exit(f"error: got both a URL ({args.url!r}) and --book {args.book!r} — "
-                     f"give one or the other")
+        book_url, book_arg = _book_target(args.url, args.book)
         if args.chapter is not None:
             sys.exit(f"error: --chapter {args.chapter} is ignored with --list — "
                      f"drop --chapter or drop --list")
