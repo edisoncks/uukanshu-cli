@@ -942,12 +942,15 @@ def resolve_start_url(args):
     URL (book URL / --book), else None. Returning it lets the reader seed
     its cache instead of refetching the same page on the first 'l' press.
     """
-    if args.url and not args.url.strip().startswith(("http://", "https://")):
+    # Strip pasted whitespace once; the chapter-URL branch below must
+    # return the stripped form (see ARCHITECTURE.md CLI resolution).
+    url = args.url.strip() if args.url else args.url
+    if url and not url.startswith(("http://", "https://")):
         sys.exit(f"error: url must start with http:// or https:// — "
                  f"got {args.url!r}")
-    book_url = book_url_from_arg(args.url)
+    book_url = book_url_from_arg(url)
     book_arg = args.book.strip() if args.book and args.book.strip() else None
-    if args.url and book_arg:
+    if url and book_arg:
         sys.exit(f"error: got both a URL ({args.url!r}) and --book {args.book!r} — "
                  f"give one or the other")
     chapter_n = 1 if args.chapter is None else args.chapter
@@ -958,14 +961,14 @@ def resolve_start_url(args):
             sys.exit(f"error: no chapters found at {book_url}.")
         _check_chapter(chapter_n, len(chapters))
         return chapters[chapter_n - 1][3], chapters
-    if args.url:
+    if url:
         if args.chapter is not None:
             # A chapter URL already names its chapter; silently ignoring
             # --chapter would open a chapter the user didn't ask for.
             sys.exit(f"error: --chapter {args.chapter} is ignored for a "
                      f"chapter URL — drop --chapter or start from the "
                      f"book URL / --book <id>")
-        return args.url, None
+        return url, None
     if not (args.book and args.book.strip()):
         sys.exit("error: give a chapter URL or --book <id> (see --help).")
     book = args.book.strip()
