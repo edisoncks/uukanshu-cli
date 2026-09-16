@@ -419,13 +419,29 @@ def link(page: str, url: str, label: str):
     # may not be the anchor's first attribute. Resolve BEFORE validating:
     # directory-relative hrefs ("456.html") only become chapter-shaped
     # after urljoin, and rejecting them upfront yields a false end-of-book.
-    m = re.search(rf'<a\s[^>]*?href=["\']([^"\']+)["\'][^>]*>\s*{label}\s*</a>', page)
+    # Inner tags (<span>) and case variations are tolerated; query/fragment
+    # are stripped before the chapter-shape check and the canonical URL
+    # without query is returned (consistent with chapter_list which
+    # returns BASE+path). See SCRAPING.md nav section.
+    m = re.search(
+        rf'<a\s[^>]*?href=["\']([^"\']+)["\'][^>]*>'
+        rf'(?:\s*<[^>]+>\s*)*{label}(?:\s*<[^>]+>\s*)*\s*</a>',
+        page, re.I)
     if not m:
         return None
     abs_url = absolutize(m.group(1), url)
-    if not _CHAPTER_HREF.fullmatch(abs_url):
+    try:
+        p = urlsplit(abs_url)
+    except ValueError:
         return None
-    return abs_url
+    canon = urlunsplit((p.scheme, p.netloc.lower(), p.path, "", ""))
+    if not _CHAPTER_HREF.fullmatch(canon):
+        return None
+    # Canonicalize host case and drop query/fragment.
+    cm = re.fullmatch(r"(https?://(?:www\.)?uukanshu\.cc)?(/book/\d+/\d+\.html)", canon, re.I)
+    if not cm:
+        return None
+    return BASE + cm.group(2)
 
 
 def chapter_list(toc_page: str, book_id: str | None = None):
@@ -441,8 +457,8 @@ def chapter_list(toc_page: str, book_id: str | None = None):
     """
     matches = list(re.finditer(
         r'href=["\'](?:https?://(?:www\.)?uukanshu\.cc)?(/book/(\d+)/(\d+)\.html)["\']'
-        r'[^>]*>\s*([^<]+?)\s*</a>',
-        toc_page, re.I))
+        r'[^>]*>\s*(.+?)\s*</a>',
+        toc_page, re.S | re.I))
     # Compare book ids numerically so "--book 00123" matches "/book/123/"
     # links; a non-numeric --book id matches nothing (clean empty downstream).
     if book_id is None:
@@ -465,8 +481,9 @@ def chapter_list(toc_page: str, book_id: str | None = None):
         if key in seen or last_idx[key] != i:
             continue
         seen.add(key)
-        out.append((len(out) + 1, int(m.group(3)),
-                    html.unescape(m.group(4).strip()),
+        # Title may contain inner tags (<b>); strip them. See SCRAPING.md.
+        title = html.unescape(re.sub(r"<[^>]+>", "", m.group(4)).strip())
+        out.append((len(out) + 1, int(m.group(3)), title,
                     BASE + m.group(1)))
     return out
 
@@ -484,7 +501,7 @@ def extract_chapter(page: str, url: str):
              if t else url)
 
     bc = re.findall(r'<a href=["\'](?:https?://[^"\']*)?/book/\d+/["\'][^>]*>([^<]+)</a>',
-                    page)
+                    page, re.I)
     # Prefer the breadcrumb anchor for THIS book's id; the last match in
     # document order is only a fallback, so a footer/recommendation block
     # linking another book's index can't rename the title bar.
@@ -493,7 +510,7 @@ def extract_chapter(page: str, url: str):
     if book_id:
         bc_own = re.findall(
             rf'<a href=["\'](?:https?://[^"\']*)?/book/{book_id.group(1)}/["\']'
-            rf'[^>]*>([^<]+)</a>', page)
+            rf'[^>]*>([^<]+)</a>', page, re.I)
         if bc_own:
             book = html.unescape(bc_own[0]).strip()
     if not book and bc:
@@ -922,7 +939,8 @@ def book_url_from_arg(url: str):
         parts = urlsplit(raw)
     except ValueError:
         return None
-    clean = urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+    # Host is case-insensitive (DNS); path stays case-sensitive.
+    clean = urlunsplit((parts.scheme, parts.netloc.lower(), parts.path, "", ""))
     m = re.fullmatch(r"https?://(?:www\.)?uukanshu\.cc/book/(\d+)(?:/(?:index\.html)?)?", clean)
     return f"{BASE}/book/{int(m.group(1))}/" if m else None
 

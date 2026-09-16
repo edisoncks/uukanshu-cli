@@ -15,7 +15,7 @@ All logic is in `fetch()`, `chapter_list()`, `extract_chapter()`, `link()`.
 
 ## TOC parsing (`chapter_list`)
 
-- Regex `href=".../book/<book>/<chap>.html">title</a>` (site-relative or absolute, `www` tolerated).
+- Regex `href=".../book/<book>/<chap>.html">title</a>` (site-relative or absolute, `www` tolerated, case-insensitive). Title inner tags (`<b>`) stripped.
 - TOC leads with a "latest updates" block duplicating tail chapters: keeps **last** occurrence per `(book, chap)` → reading order.
 - `book_id` filter compares numerically (`00123` matches `123`); non-numeric `--book` matches nothing. `None` accepts every book.
 - Returns `[(pos, chap_page_id, title, url)]` with `pos` 1-based in reading order.
@@ -27,7 +27,7 @@ All logic is in `fetch()`, `chapter_list()`, `extract_chapter()`, `link()`.
 - Body: `<div class="readcotent...">` (note source typo `readcotent`, not `readcontent`). If missing → `could not find chapter content ... (is this a chapter URL?)`.
 - Cut at `<div class="mulu-box"` (nav/footer/copyright/GTM noise). Strip `<script>`, `<br>` → `\n`, tags → text, `&emsp;` dropped, blank lines collapsed, `\n\n` joined.
 - Belt-and-braces: cut at last standalone `\n上一章 章节/章節目录 下一章` row (tolerates simp/trad prefix). Requires leading newline so in-body "上一章" mentions don't truncate.
-- Nav: `link()` resolves href via `urljoin` *before* chapter-shape check (so `456.html` validates after absolutize), accepts only `/book/<id>/<n>.html`. TOC-index / `lastchapter.php` stubs → `None` = end-of-book notice, not a parse failure.
+- Nav: `link()` resolves href via `urljoin` *before* chapter-shape check (so `456.html` validates after absolutize), accepts only `/book/<id>/<n>.html`. Query/fragment stripped before the check and the canonical URL without query is returned (consistent with `chapter_list` which returns `BASE`+path). Host compared case-insensitively. Anchor inner tags (`<span>`) and case variations tolerated. TOC-index / `lastchapter.php` stubs → `None` = end-of-book notice, not a parse failure.
 
 ## TLS fingerprinting
 

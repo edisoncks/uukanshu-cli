@@ -11,8 +11,8 @@ fetching/parsing live in [SCRAPING.md](SCRAPING.md).
 - `fetch(url) -> str`: plain HTTPS + browser headers + retries. See [SCRAPING.md](SCRAPING.md).
 - `chapter_list(toc_page, book_id)`: regex TOC scan → `[(pos, chap_id, title, url)]`. Keeps last occurrence per chapter (reading order), drops other-book links.
 - `extract_chapter(page, url)`: `(book, title, text, prev, toc, next)` via `readcotent` div + `mulu-box` cut. See [SCRAPING.md](SCRAPING.md).
-- `link(page, url, label)`: prev/TOC/next anchor → absolute chapter URL or `None` (= end-of-book notice).
-- `chapter_id(url)`, `book_url_from_arg(url)`, `absolutize(href, url)`: URL helpers. Book URLs accept `http(s)`, `www`, trailing `/index.html`, query/fragment stripped.
+- `link(page, url, label)`: prev/TOC/next anchor → canonical chapter URL or `None` (= end-of-book notice). Host case-insensitive, query/fragment stripped, inner tags tolerated.
+- `chapter_id(url)`, `book_url_from_arg(url)`, `absolutize(href, url)`: URL helpers. Book URLs accept `http(s)`, `www` (any case), trailing `/index.html`, query/fragment stripped, host lowercased; chapter URLs stripped of pasted whitespace.
 - `TocScreen` / `TocOptionList`: modal chapter picker. Opens scrolled to current chapter (`scroll_to_highlight(top=True)`); `d/u` move half-page with selection.
 - `Reader(App)`: Textual reader. `load_chapter` (`@work exclusive, group="nav"`), `fetch_toc` (`group="toc"`), `check_update` (`group="update"`). Never raises into TUI — fetch errors render in-pane.
 - `run()` / `main()`: argparse CLI + `resolve_start_url()` + env helpers. `main()` forces UTF-8 stdio, maps `KeyboardInterrupt` → 130, `BrokenPipeError` → 0, `RuntimeError/OSError/UnicodeError` → `error: ...`.
