@@ -244,6 +244,17 @@ def test_chapter_list_zero_pad_dedup_canonical():
     assert rows[0].url == "https://uukanshu.cc/book/123/1.html"
 
 
+def test_retryable_fail_fast_url_errors():
+    import http.client
+    import urllib.error
+    assert u._retryable(http.client.InvalidURL("bad")) is False
+    assert u._retryable(ValueError("bad")) is False
+    err404 = urllib.error.HTTPError("u", 404, "nf", None, None)
+    err500 = urllib.error.HTTPError("u", 500, "se", None, None)
+    assert u._retryable(err404) is False
+    assert u._retryable(err500) is True
+
+
 def test_href_spaces_around_equals():
     rows = u.chapter_list('<a href = "/book/123/5.html">T</a>', "123")
     assert len(rows) == 1 and rows[0].cid == 5

@@ -196,7 +196,10 @@ except ImportError:
 
 def _retryable(exc: BaseException) -> bool:
     """Hard 4xx answers won't change on retry; 408/429/5xx and transport
-    errors might."""
+    errors might. Deterministic client URL errors (InvalidURL from spaces
+    etc.) can never heal — fail fast. See SCRAPING.md."""
+    if isinstance(exc, (http.client.InvalidURL, ValueError)):
+        return False
     if isinstance(exc, urllib.error.HTTPError):
         return exc.code in (408, 429) or exc.code >= 500
     return True

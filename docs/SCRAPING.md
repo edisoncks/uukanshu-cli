@@ -11,7 +11,7 @@ source; whitespace around `href = "..."` is tolerated (legal HTML).
 - Browser-like headers (`User-Agent` Chrome, `Accept`, `Accept-Language zh-TW`, `Upgrade-Insecure-Requests`). No headless browser needed.
 - No `Accept-Encoding` sent, but CDNs may gzip anyway: supports `gzip` / `identity` only. Other encodings (`br`, `zstd`) → loud `RuntimeError`, never silent mojibake.
 - 10 MB cap (`_MAX_BYTES`). Gzip path streams with incremental cap so a zip-bomb can't OOM before the length check. Truncated gzip → `EOFError` (retried); corrupt → `zlib.error` (retried).
-- 3 attempts, backoff `1.5s * attempt`. Retryable: `408/429/5xx` + transport/`HTTPException`/`EOFError`/`zlib.error`. Hard `4xx` → fail fast. Unsupported-encoding/size errors never retry.
+- 3 attempts, backoff `1.5s * attempt`. Retryable: `408/429/5xx` + transport/`HTTPException`/`EOFError`/`zlib.error`. Hard `4xx` + deterministic URL errors (`InvalidURL`/`ValueError`, e.g. spaces) → fail fast. Unsupported-encoding/size errors never retry.
 - TLS via `certifi` CA store (frozen binaries don't see system store reliably). See [TLS fingerprinting](#tls-fingerprinting).
 - Cloudflare interstitial sniffed in `<title>` only (`Attention Required` / `Just a moment` / `you have been blocked`) → `blocked by Cloudflare — try again later or from a different network`. Title-only so novel body text never false-positives.
 
