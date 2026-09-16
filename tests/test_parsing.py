@@ -255,6 +255,22 @@ def test_retryable_fail_fast_url_errors():
     assert u._retryable(err500) is True
 
 
+def test_url_smalls_chapter_id_case_double_slash():
+    assert u.chapter_id("https://uukanshu.cc/BOOK/123/457.html") == 457
+    assert u.book_url_from_arg("https://uukanshu.cc/book/123//") == \
+        "https://uukanshu.cc/book/123/"
+    assert u.parse_version("v") is None
+
+
+def test_cached_latest_rejects_bool_checked_at(tmp_path, monkeypatch):
+    import json
+    p = tmp_path / "update.json"
+    p.write_text(json.dumps({"latest": "9.9.9", "checked_at": True}),
+                 encoding="utf-8")
+    monkeypatch.setattr(u, "_update_cache_path", lambda: str(p))
+    assert u._load_cached_latest() == (None, None)
+
+
 def test_href_spaces_around_equals():
     rows = u.chapter_list('<a href = "/book/123/5.html">T</a>', "123")
     assert len(rows) == 1 and rows[0].cid == 5

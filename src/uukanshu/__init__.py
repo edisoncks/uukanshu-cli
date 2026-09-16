@@ -295,8 +295,6 @@ def parse_version(s: str | None):
     if s[:1] in ("v", "V"):
         s = s[1:]
     parts = s.split(".")
-    if not parts:
-        return None
     nums = []
     for p in parts:
         p = p.strip()
@@ -342,8 +340,8 @@ def _load_cached_latest():
             return None, None
         latest = data.get("latest")
         checked_at = data.get("checked_at")
-        if not isinstance(latest, str) or not isinstance(
-                checked_at, (int, float)):
+        # bool is an int subclass — exclude it explicitly.
+        if not isinstance(latest, str) or type(checked_at) not in (int, float):
             return None, None
         return latest, checked_at
     except (OSError, ValueError):
@@ -535,7 +533,7 @@ def chapter_list(toc_page: str, book_id: str | None = None) -> list[Chapter]:
 
 def chapter_id(url: str) -> int | None:
     """The numeric chapter page id in a chapter URL, else None."""
-    m = re.search(r"/book/\d+/(\d+)\.html", url or "")
+    m = re.search(r"/book/\d+/(\d+)\.html", url or "", re.I)
     return int(m.group(1)) if m else None
 
 
@@ -1044,7 +1042,9 @@ def book_url_from_arg(url: str):
     except ValueError:
         return None
     # Host is case-insensitive (DNS); path stays case-sensitive.
-    clean = urlunsplit((parts.scheme, parts.netloc.lower(), parts.path, "", ""))
+    # Collapse redundant slashes so .../123// opens the book.
+    path = re.sub(r"/{2,}", "/", parts.path)
+    clean = urlunsplit((parts.scheme, parts.netloc.lower(), path, "", ""))
     m = re.fullmatch(r"https?://(?:www\.)?uukanshu\.cc/book/(\d+)(?:/(?:index\.html)?)?", clean)
     return f"{BASE}/book/{int(m.group(1))}/" if m else None
 
