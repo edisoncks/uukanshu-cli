@@ -9,7 +9,7 @@ fetching/parsing live in [SCRAPING.md](SCRAPING.md).
 ## Module map
 
 - `fetch(url) -> str`: plain HTTPS + browser headers + retries. See [SCRAPING.md](SCRAPING.md).
-- `chapter_list(toc_page, book_id)`: regex TOC scan → `[(pos, chap_id, title, url)]`. Keeps last occurrence per chapter (reading order), drops other-book links.
+- `chapter_list(toc_page, book_id)`: regex TOC scan → `list[Chapter(pos, cid, title, url)]` (tuple-compatible NamedTuple). Keeps last occurrence per chapter (reading order), drops other-book links.
 - `extract_chapter(page, url)`: `(book, title, text, prev, toc, next)` via `readcotent` div + `mulu-box` cut. See [SCRAPING.md](SCRAPING.md).
 - `link(page, url, label)`: prev/TOC/next anchor → canonical chapter URL or `None` (= end-of-book notice). Host case-insensitive, query/fragment stripped, inner tags tolerated.
 - `chapter_id(url)`, `book_url_from_arg(url)`, `absolutize(href, url)`: URL helpers. Book URLs accept `http(s)`, `www` (any case), trailing `/index.html`, query/fragment stripped, host lowercased; chapter URLs stripped of pasted whitespace.

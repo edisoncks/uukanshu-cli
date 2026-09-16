@@ -81,6 +81,7 @@ import time
 import urllib.error
 import urllib.request
 import zlib
+from typing import NamedTuple
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from textual import work
@@ -406,6 +407,14 @@ def absolutize(href: str, url: str) -> str:
 _CHAPTER_HREF = re.compile(r"(?:https?://(?:www\.)?uukanshu\.cc)?/book/\d+/\d+\.html")
 
 
+class Chapter(NamedTuple):
+    """One TOC row; tuple-compatible. See ARCHITECTURE.md module map."""
+    pos: int
+    cid: int
+    title: str
+    url: str
+
+
 def link(page: str, url: str, label: str):
     """Return the nav anchor's href as an absolute chapter URL, or None.
 
@@ -444,8 +453,8 @@ def link(page: str, url: str, label: str):
     return BASE + cm.group(2)
 
 
-def chapter_list(toc_page: str, book_id: str | None = None):
-    """Return [(position, chapter_page_id, title, url)] for a book TOC page.
+def chapter_list(toc_page: str, book_id: str | None = None) -> list[Chapter]:
+    """Return [Chapter(pos, cid, title, url)] for a book TOC page.
 
     The TOC page leads with a 'latest updates' block whose chapters also
     appear in the full ordered list below. Keeping the LAST occurrence of
@@ -483,8 +492,8 @@ def chapter_list(toc_page: str, book_id: str | None = None):
         seen.add(key)
         # Title may contain inner tags (<b>); strip them. See SCRAPING.md.
         title = html.unescape(re.sub(r"<[^>]+>", "", m.group(4)).strip())
-        out.append((len(out) + 1, int(m.group(3)), title,
-                    BASE + m.group(1)))
+        out.append(Chapter(len(out) + 1, int(m.group(3)), title,
+                           BASE + m.group(1)))
     return out
 
 
@@ -634,18 +643,18 @@ class TocScreen(ModalScreen):
         if self.is_mounted:
             self._fill(chapters)
 
-    def _fill(self, chapters) -> None:
+    def _fill(self, chapters: list[Chapter]) -> None:
         self.query_one("#tocspin", LoadingIndicator).display = False
         ol = self.query_one(OptionList)
         ol.clear_options()
         ol.add_options(
-            Option(f"{pos:>5}  {title}", id=str(pos))
-            for pos, _id, title, _url in chapters)
+            Option(f"{ch.pos:>5}  {ch.title}", id=str(ch.pos))
+            for ch in chapters)
         current_id = chapter_id(self.current_url)
         if current_id is not None:
             # Match by chapter id, not raw URL: the current URL may differ
             # from the TOC entry in scheme, www prefix, or a redirect.
-            pos = next((p for p, i, _t, _u in chapters if i == current_id),
+            pos = next((ch.pos for ch in chapters if ch.cid == current_id),
                        None)
             if pos is not None:
                 ol.highlighted = pos - 1
@@ -668,7 +677,7 @@ class TocScreen(ModalScreen):
 
     def on_option_list_option_selected(self, event) -> None:
         pos = int(str(event.option_id))
-        url = next((u for p, _i, _t, u in self.chapters if p == pos), None)
+        url = next((ch.url for ch in self.chapters if ch.pos == pos), None)
         self.dismiss(url)
 
     def action_close(self) -> None:
@@ -893,7 +902,7 @@ class Reader(App):
     def action_cycle_theme_reverse(self) -> None:
         self._cycle_theme(-1)
 
-    def _toc_converted(self, chapters):
+    def _toc_converted(self, chapters: list[Chapter]) -> list[Chapter]:
         """Chapter list with titles converted to the current mode. The
         cache itself stays raw — OpenCC round-trips aren't lossless."""
         if not self.simplified:
@@ -901,7 +910,8 @@ class Reader(App):
         conv = self._conv_t2s()
         if conv is None:
             return chapters
-        return [(p, i, conv.convert(t), u) for (p, i, t, u) in chapters]
+        return [Chapter(ch.pos, ch.cid, conv.convert(ch.title), ch.url)
+                for ch in chapters]
 
     def action_list(self) -> None:
         if self.modal:
@@ -1001,7 +1011,7 @@ def resolve_start_url(args):
         if not chapters:
             sys.exit(f"error: no chapters found at {book_url}.")
         _check_chapter(chapter_n, len(chapters))
-        return chapters[chapter_n - 1][3], chapters
+        return chapters[chapter_n - 1].url, chapters
     if url:
         if args.chapter is not None:
             # A chapter URL already names its chapter; silently ignoring
@@ -1018,7 +1028,7 @@ def resolve_start_url(args):
     if not chapters:
         sys.exit("error: no chapters found on the book page.")
     _check_chapter(chapter_n, len(chapters))
-    return chapters[chapter_n - 1][3], chapters
+    return chapters[chapter_n - 1].url, chapters
 
 
 def _force_utf8_stdio():
@@ -1162,9 +1172,9 @@ def run():
         chapters = chapter_list(fetch(toc_url), book_id)
         if not chapters:
             sys.exit(f"error: no chapters found at {toc_url}.")
-        for pos, _id, title, _url in chapters:
-            t = cc.convert(title) if cc else title
-            print(f"{pos:>5}  {t}")
+        for ch in chapters:
+            t = cc.convert(ch.title) if cc else ch.title
+            print(f"{ch.pos:>5}  {t}")
         return
 
     url, chapters = resolve_start_url(args)
