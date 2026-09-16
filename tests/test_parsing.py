@@ -195,6 +195,22 @@ def test_book_target_shared_validation():
         u._book_target("https://uukanshu.cc/book/123/", "123")
 
 
+def test_chapter_list_query_frag_canonical():
+    rows = u.chapter_list('<a href="/book/123/5.html?from=toc">T</a>', "123")
+    assert len(rows) == 1 and rows[0].url == \
+        "https://uukanshu.cc/book/123/5.html"
+    rows = u.chapter_list('<a href="/book/123/5.html#frag">T</a>', "123")
+    assert len(rows) == 1 and rows[0].cid == 5
+
+
+def test_chapter_list_zero_pad_dedup_canonical():
+    rows = u.chapter_list(
+        '<a href="/book/123/001.html">A</a><a href="/book/123/1.html">A</a>',
+        "123")
+    assert len(rows) == 1 and rows[0].cid == 1
+    assert rows[0].url == "https://uukanshu.cc/book/123/1.html"
+
+
 def test_href_spaces_around_equals():
     rows = u.chapter_list('<a href = "/book/123/5.html">T</a>', "123")
     assert len(rows) == 1 and rows[0].cid == 5

@@ -17,8 +17,9 @@ source; whitespace around `href = "..."` is tolerated (legal HTML).
 
 ## TOC parsing (`chapter_list`)
 
-- Regex `href=".../book/<book>/<chap>.html">title</a>` (site-relative or absolute, `www` tolerated, case-insensitive). Title inner tags (`<b>`) stripped.
-- TOC leads with a "latest updates" block duplicating tail chapters: keeps **last** occurrence per `(book, chap)` → reading order.
+- Anchors scanned via `_iter_anchors()`; href query/fragment stripped via `urlsplit`, host must be empty or `uukanshu.cc`/`www` (case-insensitive). Title inner tags (`<b>`) stripped.
+- Canonical URLs `BASE + /book/<int>/<int>.html` (no query, no leading zeros).
+- TOC leads with a "latest updates" block duplicating tail chapters: keeps **last** occurrence per `(int(book), int(chap))` → reading order.
 - `book_id` filter compares numerically (`00123` matches `123`); non-numeric `--book` matches nothing. `None` accepts every book.
 - Returns `[(pos, chap_page_id, title, url)]` with `pos` 1-based in reading order.
 
@@ -29,7 +30,7 @@ source; whitespace around `href = "..."` is tolerated (legal HTML).
 - Body: `<div class="readcotent...">` (note source typo `readcotent`, not `readcontent`). If missing → `could not find chapter content ... (is this a chapter URL?)`.
 - Cut at `<div class="mulu-box"` (nav/footer/copyright/GTM noise, case-insensitive like the `readcotent` search). Strip `<script>`, `<br>` → `\n`, tags → text, `&emsp;` dropped, blank lines collapsed, `\n\n` joined.
 - Belt-and-braces: cut at last standalone `\n上一章 章节/章節目录 下一章` row (tolerates simp/trad prefix, whitespace optional since stripped anchors may abut). Requires leading newline so in-body "上一章" mentions don't truncate.
-- Nav: `link()` resolves href via `urljoin` *before* chapter-shape check (so `456.html` validates after absolutize), accepts only `/book/<id>/<n>.html`. Query/fragment stripped before the check and the canonical URL without query is returned (consistent with `chapter_list` which returns `BASE`+path). Host compared case-insensitively. Anchor inner tags (`<span>`) and case variations tolerated. TOC-index / `lastchapter.php` stubs → `None` = end-of-book notice, not a parse failure.
+- Nav: `link()` resolves href via `urljoin` *before* chapter-shape check (so `456.html` validates after absolutize), single canonical fullmatch on scheme/host/path. Query/fragment stripped and the canonical URL without query is returned (consistent with `chapter_list`). Host compared case-insensitively. Anchor inner tags (`<span>`) and case variations tolerated. TOC-index / `lastchapter.php` stubs → `None` = end-of-book notice, not a parse failure.
 
 ## TLS fingerprinting
 
@@ -45,8 +46,8 @@ Cloudflare scores the TLS ClientHello. Some Python/OpenSSL builds get 403 from r
 | ------- | ------------ | ------------ |
 | `could not find chapter content` on all chapters | Site renamed `readcotent` / changed layout | `extract_chapter()` div regex |
 | Chapter text includes nav/footer or cuts early | `mulu-box` renamed or nav-row wording changed | `mulu-box` split + `_nav_pat` |
-| `l` shows empty / wrong book's chapters | TOC markup or recommendation block changed | `chapter_list()` regex + `book_id` filter |
-| `n`/`p` always says end-of-book | Prev/next labels or href shape changed | `link()` label regex + `_CHAPTER_HREF` |
+| `l` shows empty / wrong book's chapters | TOC markup or recommendation block changed | `chapter_list()` anchor scan + `book_id` filter |
+| `n`/`p` always says end-of-book | Prev/next labels or href shape changed | `link()` label match + canonical chapter check |
 | `blocked by Cloudflare` everywhere | Cloudflare challenge tightened / TLS fingerprint blocked | Check toolchain first ([above](#tls-fingerprinting)), then consider `curl_cffi` |
 | `failed to fetch ...` + `zlib.error`/`EOFError` spikes | Middlebox truncating gzip | Retry/backoff in `fetch()`; don't swallow as parse error |
 | `unsupported Content-Encoding` | CDN started `br`/`zstd` | Add decoder or force `identity` — never ignore |

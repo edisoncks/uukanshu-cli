@@ -404,9 +404,6 @@ def absolutize(href: str, url: str) -> str:
     return urljoin(url, href)
 
 
-_CHAPTER_HREF = re.compile(r"(?:https?://(?:www\.)?uukanshu\.cc)?/book/\d+/\d+\.html")
-
-
 # Single anchor source so chapter_list/link/breadcrumb can't drift.
 # See SCRAPING.md. Whitespace around `=` tolerated (legal HTML).
 _ANCHOR_RE = re.compile(
@@ -417,6 +414,10 @@ _ANCHOR_RE = re.compile(
 def _iter_anchors(page: str) -> list[tuple[str, str]]:
     """Raw (href, inner_html) pairs in document order."""
     return [(m.group(1), m.group(2)) for m in _ANCHOR_RE.finditer(page)]
+
+
+_CHAPTER_PATH = re.compile(r"/book/(\d+)/(\d+)\.html", re.I)
+_HOST = re.compile(r"(?:www\.)?uukanshu\.cc", re.I)
 
 
 class Chapter(NamedTuple):
@@ -459,14 +460,17 @@ def link(page: str, url: str, label: str):
         p = urlsplit(abs_url)
     except ValueError:
         return None
-    canon = urlunsplit((p.scheme, p.netloc.lower(), p.path, "", ""))
-    if not _CHAPTER_HREF.fullmatch(canon):
+    # Single canonical check (host case-insensitive, query/fragment
+    # dropped); relative refs were resolved via urljoin above. See
+    # SCRAPING.md nav section.
+    if p.scheme.lower() not in ("http", "https"):
         return None
-    # Canonicalize host case and drop query/fragment.
-    cm = re.fullmatch(r"(https?://(?:www\.)?uukanshu\.cc)?(/book/\d+/\d+\.html)", canon, re.I)
-    if not cm:
+    if not _HOST.fullmatch(p.netloc.lower()):
         return None
-    return BASE + cm.group(2)
+    m = _CHAPTER_PATH.fullmatch(p.path)
+    if not m:
+        return None
+    return f"{BASE}/book/{int(m.group(1))}/{int(m.group(2))}.html"
 
 
 def chapter_list(toc_page: str, book_id: str | None = None) -> list[Chapter]:
@@ -478,22 +482,25 @@ def chapter_list(toc_page: str, book_id: str | None = None) -> list[Chapter]:
 
     book_id, when given, drops chapter links that point at a different
     book (recommendation blocks etc.); None accepts every book. Chapter
-    hrefs may be site-relative or absolute. Anchors scanned via
-    _iter_anchors; href shape matches the pre-existing parser exactly.
+    hrefs may be site-relative or absolute; query/fragment stripped and
+    URLs canonicalized to BASE + /book/<int>/<int>.html. Dedup key is
+    (int(book), int(chap)) so zero-padded variants don't duplicate.
+    See SCRAPING.md.
     """
-    _chap_re = re.compile(
-        r"(?:https?://(?:www\.)?uukanshu\.cc)?(/book/(\d+)/(\d+)\.html)", re.I)
-    matches: list[tuple[str, str, str, str]] = []  # (path, book, chap, inner)
+    matches: list[tuple[int, int, str]] = []  # (book, chap, inner)
     for href_raw, inner in _iter_anchors(toc_page):
-        # Pre-existing shape: closing quote immediately after .html (no
-        # query/fragment yet) and no preceding chars beyond optional host.
-        # Fullmatch on the raw href preserves that exact behavior.
-        m = _chap_re.fullmatch(href_raw)
+        try:
+            p = urlsplit(href_raw)
+        except ValueError:
+            continue
+        if p.scheme and p.scheme.lower() not in ("http", "https"):
+            continue
+        if p.netloc and not _HOST.fullmatch(p.netloc.lower()):
+            continue
+        m = _CHAPTER_PATH.fullmatch(p.path)
         if not m:
             continue
-        # Pre-existing title shape: optional whitespace around inner HTML.
-        title_inner = inner.strip()
-        matches.append((m.group(1), m.group(2), m.group(3), title_inner))
+        matches.append((int(m.group(1)), int(m.group(2)), inner.strip()))
     # Compare book ids numerically so "--book 00123" matches "/book/123/"
     # links; a non-numeric --book id matches nothing (clean empty downstream).
     if book_id is None:
@@ -505,21 +512,21 @@ def chapter_list(toc_page: str, book_id: str | None = None) -> list[Chapter]:
             wanted = -1
     last_idx = {}
     for i, m in enumerate(matches):
-        if wanted is not None and int(m[1]) != wanted:
+        if wanted is not None and m[0] != wanted:
             continue
-        last_idx[(m[1], m[2])] = i
+        last_idx[(m[0], m[1])] = i
     out, seen = [], set()
     for i, m in enumerate(matches):
-        if wanted is not None and int(m[1]) != wanted:
+        if wanted is not None and m[0] != wanted:
             continue
-        key = (m[1], m[2])
+        key = (m[0], m[1])
         if key in seen or last_idx[key] != i:
             continue
         seen.add(key)
         # Title may contain inner tags (<b>); strip them. See SCRAPING.md.
-        title = html.unescape(re.sub(r"<[^>]+>", "", m[3]).strip())
-        out.append(Chapter(len(out) + 1, int(m[2]), title,
-                           BASE + m[0]))
+        title = html.unescape(re.sub(r"<[^>]+>", "", m[2]).strip())
+        out.append(Chapter(len(out) + 1, m[1], title,
+                           f"{BASE}/book/{m[0]}/{m[1]}.html"))
     return out
 
 
