@@ -408,10 +408,9 @@ _CHAPTER_HREF = re.compile(r"(?:https?://(?:www\.)?uukanshu\.cc)?/book/\d+/\d+\.
 
 
 # Single anchor source so chapter_list/link/breadcrumb can't drift.
-# See SCRAPING.md. Spelling matches the pre-existing parsers exactly;
-# whitespace tolerance arrives in the next commit.
+# See SCRAPING.md. Whitespace around `=` tolerated (legal HTML).
 _ANCHOR_RE = re.compile(
-    r'<a\s[^>]*?href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',
+    r'<a\s[^>]*?href\s*=\s*["\']([^"\']+)["\'][^>]*>(.*?)</a>',
     re.S | re.I)
 
 

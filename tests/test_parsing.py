@@ -193,3 +193,16 @@ def test_book_target_shared_validation():
     assert u._book_target("   ", "123") == (None, "123")
     with pytest.raises(SystemExit):
         u._book_target("https://uukanshu.cc/book/123/", "123")
+
+
+def test_href_spaces_around_equals():
+    rows = u.chapter_list('<a href = "/book/123/5.html">T</a>', "123")
+    assert len(rows) == 1 and rows[0].cid == 5
+    assert u.link('<a href = "/book/123/457.html">下一章</a>',
+                  BASE_CH, "下一章") == \
+        "https://uukanshu.cc/book/123/457.html"
+    book, _t, _x, *_ = u.extract_chapter(
+        '<html><h1>T</h1><a href = "/book/123/">B</a>'
+        '<div class="readcotent">text<div class="mulu-box">x</div></div></html>',
+        "https://uukanshu.cc/book/123/2.html")
+    assert book == "B"

@@ -3,6 +3,8 @@
 `uukanshu.cc` has no API — the app fetches plain HTML and parses it. Base:
 `https://uukanshu.cc`. TOC: `/book/<ID>/`. Chapter: `/book/<ID>/<N>.html`.
 All logic is in `fetch()`, `chapter_list()`, `extract_chapter()`, `link()`.
+Anchors are scanned once via `_iter_anchors()` so all parsers share one
+source; whitespace around `href = "..."` is tolerated (legal HTML).
 
 ## Fetch
 
