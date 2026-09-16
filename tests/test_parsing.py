@@ -163,6 +163,39 @@ def test_extract_inbody_mention_preserved():
     assert "有人說上一章很好笑" in text
 
 
+def test_extract_class_token_and_extra_attrs():
+    page = ('<html><h1>T</h1><a href="/book/123/">B</a>'
+            '<div class="foo readcotent bar">正文'
+            '<div id="nav" class="mulu-box clearfix">foot</div></div></html>')
+    _b, _t, text, *_ = u.extract_chapter(page, "https://uukanshu.cc/book/123/2.html")
+    assert "正文" in text and "foot" not in text
+
+
+def test_extract_strips_non_content_tags():
+    page = ('<html><h1>T</h1><a href="/book/123/">B</a>'
+            '<div class="readcotent">body'
+            '<style>.foo{color:red}</style><noscript>nojs</noscript>'
+            '<iframe src="x">fallback</iframe>'
+            '<div class="mulu-box">x</div></div></html>')
+    _b, _t, text, *_ = u.extract_chapter(page, "https://uukanshu.cc/book/123/2.html")
+    assert text == "body"
+
+
+def test_extract_abutting_footer_cut():
+    inner = "bodytext<br><a>上一章</a><a>章节目录</a><a>下一章</a>footer"
+    page = (f'<html><h1>第1章</h1><a href="/book/123/">書</a>'
+            f'<div class="readcotent">{inner}</div></html>')
+    _b, _t, text, *_ = u.extract_chapter(page, "https://uukanshu.cc/book/123/2.html")
+    assert "footer" not in text and "bodytext" in text
+
+
+def test_extract_breadcrumb_inner_tags():
+    page = ('<html><h1>T</h1><a href="/book/123/"><b>MyBook</b></a>'
+            '<div class="readcotent">text<div class="mulu-box">x</div></div></html>')
+    book, *_ = u.extract_chapter(page, "https://uukanshu.cc/book/123/2.html")
+    assert book == "MyBook"
+
+
 # --- resolve_start_url ---
 
 class _Args:

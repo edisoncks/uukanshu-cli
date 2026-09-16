@@ -26,10 +26,10 @@ source; whitespace around `href = "..."` is tolerated (legal HTML).
 ## Chapter parsing (`extract_chapter`)
 
 - Title: first `<h1>`, tags stripped, entities unescaped; fallback = URL.
-- Book name: breadcrumb anchor for *this* book ID; last-match fallback only. Prevents footer/recommendation links renaming the header.
-- Body: `<div class="readcotent...">` (note source typo `readcotent`, not `readcontent`). If missing → `could not find chapter content ... (is this a chapter URL?)`.
-- Cut at `<div class="mulu-box"` (nav/footer/copyright/GTM noise, case-insensitive like the `readcotent` search). Strip `<script>`, `<br>` → `\n`, tags → text, `&emsp;` dropped, blank lines collapsed, `\n\n` joined.
-- Belt-and-braces: cut at last standalone `\n上一章 章节/章節目录 下一章` row (tolerates simp/trad prefix, whitespace optional since stripped anchors may abut). Requires leading newline so in-body "上一章" mentions don't truncate.
+- Book name: breadcrumb anchor for *this* book ID (inner tags stripped); last-match fallback only. Prevents footer/recommendation links renaming the header.
+- Body: `<div>` with `readcotent` as a class token (any attr order, extra classes; note source typo `readcotent`, not `readcontent`). If missing → `could not find chapter content ... (is this a chapter URL?)`.
+- Cut at the `<div>` with `mulu-box` as a class token (any attr order, extra classes; nav/footer/copyright/GTM noise, case-insensitive like the `readcotent` search). Strip `<script>/<style>/<noscript>/<iframe>`, `<br>` → `\n`, tags → text, `&emsp;` dropped, blank lines collapsed, `\n\n` joined.
+- Belt-and-braces: cut at last `\n上一章 章节/章節目录 下一章` row (tolerates simp/trad prefix, whitespace optional since stripped anchors may abut; no trailing guard so abutting footers still cut). Requires leading newline so in-body "上一章" mentions don't truncate.
 - Nav: `link()` resolves href via `urljoin` *before* chapter-shape check (so `456.html` validates after absolutize), single canonical fullmatch on scheme/host/path. Query/fragment stripped and the canonical URL without query is returned (consistent with `chapter_list`). Host compared case-insensitively. Anchor inner tags (`<span>`) and case variations tolerated. TOC-index / `lastchapter.php` stubs → `None` = end-of-book notice, not a parse failure.
 
 ## TLS fingerprinting

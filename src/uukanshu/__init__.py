@@ -542,14 +542,13 @@ def extract_chapter(page: str, url: str):
     title = (html.unescape(re.sub(r"<[^>]+>", "", t.group(1))).strip()
              if t else url)
 
-    # Breadcrumb anchors scanned via _iter_anchors (same href shape as
-    # before; inner must contain no tags to preserve exact behavior —
-    # inner-tag tolerance arrives with the chapter fix). See SCRAPING.md.
+    # Breadcrumb anchors via _iter_anchors; inner tags stripped like
+    # chapter titles. See SCRAPING.md.
     _bc_re = re.compile(r"(?:https?://[^\"']*)?/book/\d+/", re.I)
     bc: list[str] = []
     for _href, _inner in _iter_anchors(page):
-        if _bc_re.fullmatch(_href) and "<" not in _inner:
-            bc.append(_inner)
+        if _bc_re.fullmatch(_href):
+            bc.append(html.unescape(re.sub(r"<[^>]+>", "", _inner)).strip())
     # Prefer the breadcrumb anchor for THIS book's id; the last match in
     # document order is only a fallback, so a footer/recommendation block
     # linking another book's index can't rename the title bar.
@@ -558,14 +557,17 @@ def extract_chapter(page: str, url: str):
     if book_id:
         _own_re = re.compile(
             rf"(?:https?://[^\"']*)?/book/{book_id.group(1)}/", re.I)
-        bc_own = [_inner for _href, _inner in _iter_anchors(page)
-                  if _own_re.fullmatch(_href) and "<" not in _inner]
+        bc_own = [html.unescape(re.sub(r"<[^>]+>", "", _inner)).strip()
+                  for _href, _inner in _iter_anchors(page)
+                  if _own_re.fullmatch(_href)]
+        bc_own = [b for b in bc_own if b]
         if bc_own:
-            book = html.unescape(bc_own[0]).strip()
+            book = bc_own[0]
+    bc = [b for b in bc if b]
     if not book and bc:
-        book = html.unescape(bc[-1]).strip()
+        book = bc[-1]
 
-    m = re.search(r'<div\s+class=["\']readcotent[^"\']*["\'][^>]*>(.*)', page, re.S | re.I)
+    m = re.search(r'<div\b[^>]*class\s*=\s*["\'][^"\']*\breadcotent\b[^"\']*["\'][^>]*>(.*)', page, re.S | re.I)
     if not m:
         raise RuntimeError("could not find chapter content on the page "
                            "(is this a chapter URL?)")
@@ -575,8 +577,11 @@ def extract_chapter(page: str, url: str):
     # tip, the copyright blurb, the "Copyright ... TOP↑" footer, and the
     # GTM iframe/noscript leftovers — never chapter text. Case-insensitive
     # like the readcotent search above; see SCRAPING.md.
-    body = re.split(r'<div\s+class=["\']mulu-box["\']', body, maxsplit=1, flags=re.I)[0]
-    body = re.sub(r"<script[^>]*>.*?</script>", "", body, flags=re.S | re.I)
+    # GTM iframe/noscript leftovers — never chapter text. Token match on
+    # class (any attr order, extra classes) like the readcotent search
+    # above; see SCRAPING.md.
+    body = re.split(r'<div\b[^>]*class\s*=\s*["\'][^"\']*\bmulu-box\b[^"\']*["\']', body, maxsplit=1, flags=re.I)[0]
+    body = re.sub(r"<(script|style|noscript|iframe)[^>]*>.*?</\1\s*>", "", body, flags=re.S | re.I)
     body = re.sub(r"<br\s*/?>", "\n", body, flags=re.I)
     body = re.sub(r"<[^>]+>", "", body)
     body = body.replace("&emsp;", "")
@@ -589,8 +594,9 @@ def extract_chapter(page: str, url: str):
     # is optional (stripped anchors may abut); require a line break
     # before 上一章 so an in-body mention ("有人說上一章 ... 很好笑")
     # doesn't truncate the chapter, and cut at the LAST standalone nav
-    # row rather than the first mention. See SCRAPING.md.
-    _nav_pat = re.compile(r"\n上一章\s*(?:章节|章節)?\s*目[录錄]\s*下一章(?=\s|$)")
+    # row rather than the first mention. No trailing guard: footer may abut
+    # the nav row after tag stripping. See SCRAPING.md.
+    _nav_pat = re.compile(r"\n上一章\s*(?:章节|章節)?\s*目[录錄]\s*下一章")
     _nav_matches = list(_nav_pat.finditer(text))
     if _nav_matches:
         text = text[:_nav_matches[-1].start()].rstrip()
