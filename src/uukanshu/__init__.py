@@ -334,6 +334,8 @@ def _load_cached_latest(now: float | None = None):
     try:
         with open(_update_cache_path(), encoding="utf-8") as f:
             data = json.load(f)
+        if not isinstance(data, dict):
+            return None, None
         latest = data.get("latest")
         checked_at = data.get("checked_at")
         if not isinstance(latest, str) or not isinstance(
