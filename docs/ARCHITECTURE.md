@@ -34,7 +34,7 @@ fetching/parsing live in [SCRAPING.md](SCRAPING.md).
 
 - `url`, `book_id`, `prev_url`/`next_url`, `_raw = (book, title, text)` last fetched (always Traditional), `_load_error` raw error of last failed load.
 - Failed `load_chapter` keeps `url`/`_raw` at the last good chapter and records `_load_error`; `on_toc_choice` never sets `url` itself so a failed jump keeps highlighting the displayed chapter. `z` on an error pane re-renders the error in the new mode instead of resurrecting stale `_raw`.
-- `chapters_cache` + `_cache_book`: TOC seeded by CLI or `fetch_toc()`; stays raw, converted at render/populate time (OpenCC round-trips aren't lossless).
+- `chapters_cache` + `_cache_book`: TOC seeded by CLI or `fetch_toc()`; stays raw, converted at render/populate time (OpenCC round-trips aren't lossless). `fetch_toc` captures `book_id` at open; a racing `n`/`p` that changes `book_id` mid-flight only wastes one refetch on next open (`_cache_book != book_id`), never shows the wrong book. `self.screen is screen` guard prevents writing to a dismissed modal.
 - `n`/`p` no-op on open modal; `None` next/prev → "end/start of book" notice.
 - `z` toggles `simplified`, re-renders `_raw` + TOC in place, preserves list position.
 - `t`/`T` cycles the 8 `READER_THEMES` (`night` default); notifies `主题 / theme: <name>`.
