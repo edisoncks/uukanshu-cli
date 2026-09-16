@@ -536,11 +536,12 @@ def extract_chapter(page: str, url: str):
     text = "\n\n".join(lines)
     # Belt-and-braces for pages without the mulu-box container: also cut at
     # the literal nav row, tolerating the "章节/章節" prefix (simplified /
-    # traditional) that prefixes the link label. Require a line break
+    # traditional) that prefixes the link label. Whitespace between tokens
+    # is optional (stripped anchors may abut); require a line break
     # before 上一章 so an in-body mention ("有人說上一章 ... 很好笑")
     # doesn't truncate the chapter, and cut at the LAST standalone nav
-    # row rather than the first mention.
-    _nav_pat = re.compile(r"\n上一章\s+(?:章节|章節)?目[录錄]\s+下一章(?=\s|$)")
+    # row rather than the first mention. See SCRAPING.md.
+    _nav_pat = re.compile(r"\n上一章\s*(?:章节|章節)?\s*目[录錄]\s*下一章(?=\s|$)")
     _nav_matches = list(_nav_pat.finditer(text))
     if _nav_matches:
         text = text[:_nav_matches[-1].start()].rstrip()

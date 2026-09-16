@@ -26,7 +26,7 @@ All logic is in `fetch()`, `chapter_list()`, `extract_chapter()`, `link()`.
 - Book name: breadcrumb anchor for *this* book ID; last-match fallback only. Prevents footer/recommendation links renaming the header.
 - Body: `<div class="readcotent...">` (note source typo `readcotent`, not `readcontent`). If missing → `could not find chapter content ... (is this a chapter URL?)`.
 - Cut at `<div class="mulu-box"` (nav/footer/copyright/GTM noise, case-insensitive like the `readcotent` search). Strip `<script>`, `<br>` → `\n`, tags → text, `&emsp;` dropped, blank lines collapsed, `\n\n` joined.
-- Belt-and-braces: cut at last standalone `\n上一章 章节/章節目录 下一章` row (tolerates simp/trad prefix). Requires leading newline so in-body "上一章" mentions don't truncate.
+- Belt-and-braces: cut at last standalone `\n上一章 章节/章節目录 下一章` row (tolerates simp/trad prefix, whitespace optional since stripped anchors may abut). Requires leading newline so in-body "上一章" mentions don't truncate.
 - Nav: `link()` resolves href via `urljoin` *before* chapter-shape check (so `456.html` validates after absolutize), accepts only `/book/<id>/<n>.html`. Query/fragment stripped before the check and the canonical URL without query is returned (consistent with `chapter_list` which returns `BASE`+path). Host compared case-insensitively. Anchor inner tags (`<span>`) and case variations tolerated. TOC-index / `lastchapter.php` stubs → `None` = end-of-book notice, not a parse failure.
 
 ## TLS fingerprinting
