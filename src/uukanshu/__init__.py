@@ -830,7 +830,8 @@ class Reader(App):
 
     def ui(self, s: str) -> str:
         """Built-in chrome strings are written Simplified; show them
-        Traditional while the reader is in Traditional mode."""
+        Traditional while the reader is in Traditional mode. Convert
+        failures fall back to Simplified — never raise into the TUI."""
         if self.simplified:
             return s
         if self._s2t is None and not self._s2t_failed:
@@ -841,14 +842,25 @@ class Reader(App):
                 # Leave chrome Simplified rather than crash the reader;
                 # recorded so a missing dict doesn't retry on every call.
                 self._s2t_failed = True
-        return self._s2t.convert(s) if self._s2t else s
+        if not self._s2t:
+            return s
+        try:
+            return self._s2t.convert(s)
+        except Exception:
+            return s
 
     def _render(self, book, title, text):
-        """Render the given (raw) chapter content in the current mode."""
+        """Render the given (raw) chapter content in the current mode.
+        Convert failures fall back to raw — never raise into the TUI."""
         if self.simplified:
             conv = self._conv_t2s()
             if conv is not None:
-                book, title, text = conv.convert(book), conv.convert(title), conv.convert(text)
+                try:
+                    book, title, text = (conv.convert(book),
+                                        conv.convert(title),
+                                        conv.convert(text))
+                except Exception:
+                    pass
         self.title = f"{book} — {title}" if book else title
         self.query_one("#doc", Static).update(Text.assemble(
             (book + "\n", "bold"),
@@ -953,14 +965,20 @@ class Reader(App):
 
     def _toc_converted(self, chapters: list[Chapter]) -> list[Chapter]:
         """Chapter list with titles converted to the current mode. The
-        cache itself stays raw — OpenCC round-trips aren't lossless."""
+        cache itself stays raw — OpenCC round-trips aren't lossless.
+        Per-title fallback: one bad title keeps its raw text."""
         if not self.simplified:
             return chapters
         conv = self._conv_t2s()
         if conv is None:
             return chapters
-        return [Chapter(ch.pos, ch.cid, conv.convert(ch.title), ch.url)
-                for ch in chapters]
+        out = []
+        for ch in chapters:
+            try:
+                out.append(Chapter(ch.pos, ch.cid, conv.convert(ch.title), ch.url))
+            except Exception:
+                out.append(ch)
+        return out
 
     def action_list(self) -> None:
         if self.modal:

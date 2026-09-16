@@ -67,3 +67,30 @@ def test_toggle_with_nothing_loaded_warns_without_flip():
             assert notes
 
     asyncio.run(go())
+
+
+def test_render_convert_failure_falls_back_raw():
+    import asyncio
+
+    class _Boom:
+        def convert(self, s):
+            raise RuntimeError("opencc boom")
+
+    async def go():
+        app = u.Reader("https://uukanshu.cc/book/123/1.html", _Boom(), True,
+                       2, update_check=False)
+        app.load_chapter = lambda url: None  # type: ignore
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            # Must not raise: falls back to raw text.
+            app._render("B", "T", "hello")
+            from textual.widgets import Static
+            rendered = str(app.query_one("#doc", Static).render())
+            assert "hello" in rendered
+            # Per-title TOC fallback keeps raw title.
+            chs = [u.Chapter(1, 1, "T1", "u1"), u.Chapter(2, 2, "T2", "u2")]
+            out = app._toc_converted(chs)
+            assert [c.title for c in out] == ["T1", "T2"]
+            assert app.ui("x") == "x"
+
+    asyncio.run(go())

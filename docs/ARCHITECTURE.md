@@ -39,7 +39,7 @@ fetching/parsing live in [SCRAPING.md](SCRAPING.md).
 - `n`/`p` no-op on open modal; `None` next/prev → "end/start of book" notice.
 - `z` toggles `simplified`, re-renders `_raw` + TOC in place, preserves list position.
 - `t`/`T` cycles the 8 `READER_THEMES` (`night` default); notifies `主题 / theme: <name>`.
-- `ui(s)`: chrome strings stored Simplified, converted via lazy `s2t` when in Traditional mode; content via lazy `t2s` when in Simplified mode. Missing OpenCC dict → fall back, never crash in-app.
+- `ui(s)`: chrome strings stored Simplified, converted via lazy `s2t` when in Traditional mode; content via lazy `t2s` when in Simplified mode. Missing dict or convert failure → fall back to raw, never crash in-app. `_render` falls back whole-triple; `_toc_converted` falls back per-title.
 - No whitelist post-pass on conversion (a prior one corrupted `土著` etc. — do not re-add).
 
 ## Config precedence
