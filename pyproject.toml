@@ -15,6 +15,9 @@ uukanshu = "uukanshu:main"
 
 [dependency-groups]
 build = ["pyinstaller>=6"]
+dev = [
+    "pytest>=9.1.1",
+]
 
 [build-system]
 requires = ["hatchling"]
