@@ -80,6 +80,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import zlib
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from textual import work
@@ -246,11 +247,12 @@ def fetch(url: str) -> str:
             break
         # URLError/HTTPError/TimeoutError are all OSError subclasses;
         # http.client's IncompleteRead/BadStatusLine are not — catch both.
-        # gzip.decompress on a truncated body raises EOFError (neither
-        # OSError nor HTTPException) — must be caught or a flaky
-        # middlebox gives a raw traceback instead of a clean error.
-        # Unsupported-encoding/size RuntimeErrors must not retry.
-        except (OSError, http.client.HTTPException, EOFError) as exc:
+        # gzip raises EOFError on a truncated body and zlib.error on a
+        # corrupt payload (neither OSError nor HTTPException) — must be
+        # caught or a flaky middlebox gives a raw traceback instead of a
+        # clean error. Unsupported-encoding/size RuntimeErrors must not
+        # retry.
+        except (OSError, http.client.HTTPException, EOFError, zlib.error) as exc:
             last_exc = exc
             if attempt == 2 or not _retryable(exc):
                 break
