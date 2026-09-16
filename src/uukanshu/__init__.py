@@ -65,7 +65,7 @@ TIPS
     https://uukanshu.cc/modules/article/search.php?q=<title>
 """
 
-__version__ = "0.3.5"
+__version__ = "0.4.0"
 
 import argparse
 import asyncio
