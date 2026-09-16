@@ -1,0 +1,49 @@
+# Architecture
+
+One-line flow: `CLI resolve -> fetch() -> parse -> Reader / --print / --list`.
+
+The whole app is one module (`src/uukanshu/__init__.py`, ~1100 lines) by
+design — small enough to hold in one file, no package overhead. Details on
+fetching/parsing live in [SCRAPING.md](SCRAPING.md).
+
+## Module map
+
+- `fetch(url) -> str`: plain HTTPS + browser headers + retries. See [SCRAPING.md](SCRAPING.md).
+- `chapter_list(toc_page, book_id)`: regex TOC scan → `[(pos, chap_id, title, url)]`. Keeps last occurrence per chapter (reading order), drops other-book links.
+- `extract_chapter(page, url)`: `(book, title, text, prev, toc, next)` via `readcotent` div + `mulu-box` cut. See [SCRAPING.md](SCRAPING.md).
+- `link(page, url, label)`: prev/TOC/next anchor → absolute chapter URL or `None` (= end-of-book notice).
+- `chapter_id(url)`, `book_url_from_arg(url)`, `absolutize(href, url)`: URL helpers. Book URLs accept `http(s)`, `www`, trailing `/index.html`, query/fragment stripped.
+- `TocScreen` / `TocOptionList`: modal chapter picker. Opens scrolled to current chapter (`scroll_to_highlight(top=True)`); `d/u` move half-page with selection.
+- `Reader(App)`: Textual reader. `load_chapter` (`@work exclusive, group="nav"`), `fetch_toc` (`group="toc"`), `check_update` (`group="update"`). Never raises into TUI — fetch errors render in-pane.
+- `run()` / `main()`: argparse CLI + `resolve_start_url()` + env helpers. `main()` forces UTF-8 stdio, maps `KeyboardInterrupt` → 130, `BrokenPipeError` → 0, `RuntimeError/OSError/UnicodeError` → `error: ...`.
+
+## CLI resolution
+
+| Input | Result |
+| ----- | ------ |
+| Book URL [+ `--chapter N`] | Fetch TOC, range-check `N`, open `chapters[N-1]`. Returns TOC for cache. |
+| Chapter URL (no `--chapter`) | Open directly. `--chapter` + chapter URL → error. |
+| `--book ID` [+ `--chapter N`] | Same as book URL via `${BASE}/book/<ID>/`. |
+| `--book` / book URL + `--list` | Print TOC, exit. `--chapter` / `--print` + `--list` → error. |
+| `--print` | Fetch one chapter, print `book\\ntitle\\n\\ntext`, exit. No TUI. |
+| Nothing | `error: give a chapter URL or --book <id>`. |
+
+`_check_chapter()` never clamps — out-of-range exits with the book's chapter count.
+
+## Reader state
+
+- `url`, `book_id`, `prev_url`/`next_url`, `_raw = (book, title, text)` last fetched (always Traditional).
+- `chapters_cache` + `_cache_book`: TOC seeded by CLI or `fetch_toc()`; stays raw, converted at render/populate time (OpenCC round-trips aren't lossless).
+- `n`/`p` no-op on open modal; `None` next/prev → "end/start of book" notice.
+- `z` toggles `simplified`, re-renders `_raw` + TOC in place, preserves list position.
+- `t`/`T` cycles the 8 `READER_THEMES` (`night` default); notifies `主题 / theme: <name>`.
+- `ui(s)`: chrome strings stored Simplified, converted via lazy `s2t` when in Traditional mode; content via lazy `t2s` when in Simplified mode. Missing OpenCC dict → fall back, never crash in-app.
+- No whitelist post-pass on conversion (a prior one corrupted `土著` etc. — do not re-add).
+
+## Config precedence
+
+Flag > env (`UUKANSHU_*`) > default. `UUKANSHU_THEME` whitespace-stripped and validated against theme names; `UUKANSHU_PAD` / `UUKANSHU_SIMPLIFIED` / `UUKANSHU_NO_UPDATE_CHECK` parsed with clean `error:` exits. See [DEVELOPMENT.md](DEVELOPMENT.md#appendix-full-cli-reference) and updater contract in [RELEASING.md](RELEASING.md#updater-contract).
+
+## Themes
+
+`night` (default, dark) · `sepia` · `paper` · `catppuccin-frappe` · `catppuccin-macchiato` · `catppuccin-mocha` · `tokyo-night` · `matrix`. Registered via `textual.theme.Theme`; `self.theme` cycled by index.
