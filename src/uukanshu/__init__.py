@@ -572,6 +572,8 @@ class TocScreen(ModalScreen):
     def __init__(self, current_url, ui=None):
         super().__init__()
         self.chapters = []
+        self._loaded = False
+        self._error = None
         self.current_url = current_url
         self.ui = ui or (lambda s: s)
 
@@ -584,7 +586,9 @@ class TocScreen(ModalScreen):
 
     def on_mount(self) -> None:
         self.query_one(OptionList).can_focus = True
-        if self.chapters:
+        if self._error is not None:
+            self._render_error(self._error)
+        elif self._loaded:
             self._fill(self.chapters)
 
     def action_half(self, sign: int) -> None:
@@ -601,6 +605,8 @@ class TocScreen(ModalScreen):
     def populate(self, chapters) -> None:
         """Safe to call before OR after the modal has mounted."""
         self.chapters = chapters
+        self._loaded = True
+        self._error = None
         if self.is_mounted:
             self._fill(chapters)
 
@@ -623,11 +629,15 @@ class TocScreen(ModalScreen):
         ol.focus()
 
     def show_error(self, msg: str) -> None:
-        if not self.is_mounted:
-            return
+        self._error = msg
+        if self.is_mounted:
+            self._render_error(msg)
+
+    def _render_error(self, msg: str) -> None:
+        # Renders only; callers own the mounted check. Text, not markup:
+        # msg can embed an untrusted URL or exception text whose brackets
+        # would break Rich markup parsing.
         self.query_one("#tocspin", LoadingIndicator).display = False
-        # Text, not markup: msg can embed an untrusted URL or exception
-        # text whose brackets would break Rich markup parsing.
         self.query_one("#tochead", Static).update(
             Text("error: ", style="bold red") + Text(msg)
             + Text(" — Esc/q to close"))
