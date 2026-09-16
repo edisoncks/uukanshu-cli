@@ -936,13 +936,14 @@ def resolve_start_url(args):
     if args.url and book_arg:
         sys.exit(f"error: got both a URL ({args.url!r}) and --book {args.book!r} — "
                  f"give one or the other")
+    chapter_n = 1 if args.chapter is None else args.chapter
     if book_url:
         book_id = re.search(r"/book/(\d+)/", book_url).group(1)
         chapters = chapter_list(fetch(book_url), book_id)
         if not chapters:
             sys.exit(f"error: no chapters found at {book_url}.")
-        _check_chapter(args.chapter or 1, len(chapters))
-        return chapters[(args.chapter or 1) - 1][3], chapters
+        _check_chapter(chapter_n, len(chapters))
+        return chapters[chapter_n - 1][3], chapters
     if args.url:
         if args.chapter is not None:
             # A chapter URL already names its chapter; silently ignoring
@@ -958,8 +959,8 @@ def resolve_start_url(args):
     chapters = chapter_list(page, book)
     if not chapters:
         sys.exit("error: no chapters found on the book page.")
-    _check_chapter(args.chapter or 1, len(chapters))
-    return chapters[(args.chapter or 1) - 1][3], chapters
+    _check_chapter(chapter_n, len(chapters))
+    return chapters[chapter_n - 1][3], chapters
 
 
 def _force_utf8_stdio():
