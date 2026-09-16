@@ -407,6 +407,19 @@ def absolutize(href: str, url: str) -> str:
 _CHAPTER_HREF = re.compile(r"(?:https?://(?:www\.)?uukanshu\.cc)?/book/\d+/\d+\.html")
 
 
+# Single anchor source so chapter_list/link/breadcrumb can't drift.
+# See SCRAPING.md. Spelling matches the pre-existing parsers exactly;
+# whitespace tolerance arrives in the next commit.
+_ANCHOR_RE = re.compile(
+    r'<a\s[^>]*?href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',
+    re.S | re.I)
+
+
+def _iter_anchors(page: str) -> list[tuple[str, str]]:
+    """Raw (href, inner_html) pairs in document order."""
+    return [(m.group(1), m.group(2)) for m in _ANCHOR_RE.finditer(page)]
+
+
 class Chapter(NamedTuple):
     """One TOC row; tuple-compatible. See ARCHITECTURE.md module map."""
     pos: int
@@ -431,14 +444,18 @@ def link(page: str, url: str, label: str):
     # Inner tags (<span>) and case variations are tolerated; query/fragment
     # are stripped before the chapter-shape check and the canonical URL
     # without query is returned (consistent with chapter_list which
-    # returns BASE+path). See SCRAPING.md nav section.
-    m = re.search(
-        rf'<a\s[^>]*?href=["\']([^"\']+)["\'][^>]*>'
-        rf'(?:\s*<[^>]+>\s*)*{label}(?:\s*<[^>]+>\s*)*\s*</a>',
-        page, re.I)
-    if not m:
+    # returns BASE+path). Anchors scanned via _iter_anchors so all parsers
+    # share one source. See SCRAPING.md nav section.
+    label_re = re.compile(
+        rf"(?:\s*<[^>]+>\s*)*{label}(?:\s*<[^>]+>\s*)*\s*", re.I)
+    href_raw = None
+    for _href, _inner in _iter_anchors(page):
+        if label_re.fullmatch(_inner):
+            href_raw = _href
+            break
+    if href_raw is None:
         return None
-    abs_url = absolutize(m.group(1), url)
+    abs_url = absolutize(href_raw, url)
     try:
         p = urlsplit(abs_url)
     except ValueError:
@@ -462,12 +479,22 @@ def chapter_list(toc_page: str, book_id: str | None = None) -> list[Chapter]:
 
     book_id, when given, drops chapter links that point at a different
     book (recommendation blocks etc.); None accepts every book. Chapter
-    hrefs may be site-relative or absolute.
+    hrefs may be site-relative or absolute. Anchors scanned via
+    _iter_anchors; href shape matches the pre-existing parser exactly.
     """
-    matches = list(re.finditer(
-        r'href=["\'](?:https?://(?:www\.)?uukanshu\.cc)?(/book/(\d+)/(\d+)\.html)["\']'
-        r'[^>]*>\s*(.+?)\s*</a>',
-        toc_page, re.S | re.I))
+    _chap_re = re.compile(
+        r"(?:https?://(?:www\.)?uukanshu\.cc)?(/book/(\d+)/(\d+)\.html)", re.I)
+    matches: list[tuple[str, str, str, str]] = []  # (path, book, chap, inner)
+    for href_raw, inner in _iter_anchors(toc_page):
+        # Pre-existing shape: closing quote immediately after .html (no
+        # query/fragment yet) and no preceding chars beyond optional host.
+        # Fullmatch on the raw href preserves that exact behavior.
+        m = _chap_re.fullmatch(href_raw)
+        if not m:
+            continue
+        # Pre-existing title shape: optional whitespace around inner HTML.
+        title_inner = inner.strip()
+        matches.append((m.group(1), m.group(2), m.group(3), title_inner))
     # Compare book ids numerically so "--book 00123" matches "/book/123/"
     # links; a non-numeric --book id matches nothing (clean empty downstream).
     if book_id is None:
@@ -479,21 +506,21 @@ def chapter_list(toc_page: str, book_id: str | None = None) -> list[Chapter]:
             wanted = -1
     last_idx = {}
     for i, m in enumerate(matches):
-        if wanted is not None and int(m.group(2)) != wanted:
+        if wanted is not None and int(m[1]) != wanted:
             continue
-        last_idx[(m.group(2), m.group(3))] = i
+        last_idx[(m[1], m[2])] = i
     out, seen = [], set()
     for i, m in enumerate(matches):
-        if wanted is not None and int(m.group(2)) != wanted:
+        if wanted is not None and int(m[1]) != wanted:
             continue
-        key = (m.group(2), m.group(3))
+        key = (m[1], m[2])
         if key in seen or last_idx[key] != i:
             continue
         seen.add(key)
         # Title may contain inner tags (<b>); strip them. See SCRAPING.md.
-        title = html.unescape(re.sub(r"<[^>]+>", "", m.group(4)).strip())
-        out.append(Chapter(len(out) + 1, int(m.group(3)), title,
-                           BASE + m.group(1)))
+        title = html.unescape(re.sub(r"<[^>]+>", "", m[3]).strip())
+        out.append(Chapter(len(out) + 1, int(m[2]), title,
+                           BASE + m[0]))
     return out
 
 
@@ -509,17 +536,24 @@ def extract_chapter(page: str, url: str):
     title = (html.unescape(re.sub(r"<[^>]+>", "", t.group(1))).strip()
              if t else url)
 
-    bc = re.findall(r'<a href=["\'](?:https?://[^"\']*)?/book/\d+/["\'][^>]*>([^<]+)</a>',
-                    page, re.I)
+    # Breadcrumb anchors scanned via _iter_anchors (same href shape as
+    # before; inner must contain no tags to preserve exact behavior —
+    # inner-tag tolerance arrives with the chapter fix). See SCRAPING.md.
+    _bc_re = re.compile(r"(?:https?://[^\"']*)?/book/\d+/", re.I)
+    bc: list[str] = []
+    for _href, _inner in _iter_anchors(page):
+        if _bc_re.fullmatch(_href) and "<" not in _inner:
+            bc.append(_inner)
     # Prefer the breadcrumb anchor for THIS book's id; the last match in
     # document order is only a fallback, so a footer/recommendation block
     # linking another book's index can't rename the title bar.
     book = ""
     book_id = re.search(r"/book/(\d+)/", url)
     if book_id:
-        bc_own = re.findall(
-            rf'<a href=["\'](?:https?://[^"\']*)?/book/{book_id.group(1)}/["\']'
-            rf'[^>]*>([^<]+)</a>', page, re.I)
+        _own_re = re.compile(
+            rf"(?:https?://[^\"']*)?/book/{book_id.group(1)}/", re.I)
+        bc_own = [_inner for _href, _inner in _iter_anchors(page)
+                  if _own_re.fullmatch(_href) and "<" not in _inner]
         if bc_own:
             book = html.unescape(bc_own[0]).strip()
     if not book and bc:
