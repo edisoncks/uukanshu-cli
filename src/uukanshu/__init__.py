@@ -711,6 +711,7 @@ class Reader(App):
         self._s2t = None  # lazily built: chrome localization for Traditional mode
         self._s2t_failed = False  # s2t load failed; don't retry every keystroke
         self._raw = None  # raw (book, title, text) of the last fetched chapter
+        self._load_error = None  # raw "Type: msg" of last failed load, re-rendered via ui()
         self.next_url = self.prev_url = None
         m = re.search(r"/book/(\d+)/", url)
         self.book_id = m.group(1) if m else None
@@ -807,6 +808,7 @@ class Reader(App):
     async def load_chapter(self, url: str) -> None:
         doc = self.query_one("#doc", Static)
         doc.update(self.ui("载入中… loading…"))
+        self._load_error = None
         try:
             page = await asyncio.to_thread(fetch, url)
             book, title, text, prev_url, _toc, next_url = extract_chapter(page, url)
@@ -815,8 +817,12 @@ class Reader(App):
             # (network, block pages, non-chapter URLs); anything else is a
             # parser bug from changed site markup. Show it in the pane —
             # with @work(exit_on_error=True) re-raising would tear down
-            # the whole TUI over one bad page.
-            doc.update(Text(self.ui("错误："), style="bold red") + Text(f"{type(exc).__name__}: {exc}"))
+            # the whole TUI over one bad page. Keep url/_raw at the last
+            # good chapter so a later `l` highlights what is displayed,
+            # not the failed target; record raw error for `z` re-render.
+            # See ARCHITECTURE.md Reader state.
+            self._load_error = f"{type(exc).__name__}: {exc}"
+            doc.update(Text(self.ui("错误："), style="bold red") + Text(self._load_error))
             return
         m = re.search(r"/book/(\d+)/", url)
         if m:
@@ -824,6 +830,7 @@ class Reader(App):
         self.url = url
         self.prev_url, self.next_url = prev_url, next_url
         self._raw = (book, title, text)
+        self._load_error = None
         self._render(book, title, text)
         self.query_one(VerticalScroll).scroll_home(immediate=True)
 
@@ -850,12 +857,18 @@ class Reader(App):
             self.notify(self.ui("已是第一章") + " / start of book", severity="warning")
 
     def action_toggle_simplified(self) -> None:
-        if self._raw is None:
+        # Error pane re-renders in the new mode instead of resurrecting
+        # the stale chapter; see ARCHITECTURE.md Reader state.
+        if self._load_error is None and self._raw is None:
             self.notify(self.ui("尚无内容") + " / nothing loaded yet",
                         severity="warning")
             return
         self.simplified = not self.simplified
-        self._render(*self._raw)
+        if self._load_error is not None:
+            self.query_one("#doc", Static).update(
+                Text(self.ui("错误："), style="bold red") + Text(self._load_error))
+        else:
+            self._render(*self._raw)
         if (self.chapters_cache and self._cache_book == self.book_id
                 and isinstance(self.screen, TocScreen)):
             # Preserve browsing position: populate() re-highlights the
@@ -919,8 +932,9 @@ class Reader(App):
             screen.populate(self._toc_converted(chapters))
 
     def on_toc_choice(self, url) -> None:
+        # url/book_id/_raw are set only on successful load_chapter, so a
+        # failed jump keeps highlighting the displayed chapter.
         if url:
-            self.url = url
             self.load_chapter(url)
 
 
