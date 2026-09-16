@@ -13,11 +13,11 @@ WHAT YOU NEED
 
 
 KEYS (shown in the footer bar too)
-  n           next chapter          p   previous chapter
+  n / →       next chapter          p / ← previous chapter
   l           chapter list — opens instantly with a spinner while the list
               is fetched; cached per book. Esc or q closes it, Enter jumps
   q           quit
-  d/u            half-page down/up (smooth glide)   arrows / PgUp / PgDn / Home / End
+  d/u            half-page down/up (smooth glide)   ↑↓ / PgUp / PgDn / Home / End
   z           toggle Simplified / Traditional — instantly re-renders the
               chapter text, header title, chapter list, and UI messages
               without refetching
@@ -745,6 +745,8 @@ class Reader(App):
         Binding("u", "half(-1)", "up"),
         Binding("n", "next", "next"),
         Binding("p", "prev", "prev"),
+        Binding("right", "next", show=False),
+        Binding("left", "prev", show=False),
         Binding("l", "list", "chapters"),
         Binding("z", "toggle_simplified", "simplified"),
         Binding("t", "cycle_theme", "theme", key_display="t/T"),

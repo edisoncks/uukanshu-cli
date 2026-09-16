@@ -94,3 +94,40 @@ def test_render_convert_failure_falls_back_raw():
             assert app.ui("x") == "x"
 
     asyncio.run(go())
+
+
+def test_arrow_keys_navigate_and_footer_stays_p_n():
+    import asyncio
+
+    async def go():
+        app = u.Reader("https://uukanshu.cc/book/123/1.html", None, False, 2,
+                       update_check=False)
+        seen = []
+        app.load_chapter = lambda url: seen.append(url)  # type: ignore
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            seen.clear()  # drop initial on-mount load of self.url
+            app.prev_url = "PREV"
+            app.next_url = "NEXT"
+            await pilot.press("right")
+            await pilot.pause()
+            assert seen == ["NEXT"]
+            await pilot.press("left")
+            await pilot.pause()
+            assert seen == ["NEXT", "PREV"]
+            # Footer keeps showing p/n: arrow aliases stay hidden.
+            visible = {b.key: b for b in app.BINDINGS if b.show}
+            assert visible["n"].action == "next"
+            assert visible["p"].action == "prev"
+            assert "left" not in visible and "right" not in visible
+            # Open modal: arrows must not navigate.
+            seen.clear()
+            await app.push_screen(u.TocScreen(app.url))
+            await pilot.pause()
+            await pilot.press("right")
+            await pilot.pause()
+            await pilot.press("left")
+            await pilot.pause()
+            assert seen == []
+
+    asyncio.run(go())

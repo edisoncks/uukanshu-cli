@@ -120,10 +120,11 @@ title at `https://uukanshu.cc/modules/article/search.php?q=<title>`.
 
 | Key                             | What it does                                                 |
 | ------------------------------- | ------------------------------------------------------------ |
-| <kbd>n</kbd> / <kbd>p</kbd>     | Next / previous chapter                                      |
+| <kbd>n</kbd> / <kbd>→</kbd>     | Next chapter                                                 |
+| <kbd>p</kbd> / <kbd>←</kbd>     | Previous chapter                                             |
 | <kbd>l</kbd>                    | Chapter list — <kbd>Enter</kbd> jumps, <kbd>Esc</kbd> closes |
 | <kbd>d</kbd> / <kbd>u</kbd>     | Half a page down / up                                        |
-| Arrow keys, PgUp/PgDn, Home/End | Scroll                                                       |
+| <kbd>↑</kbd> / <kbd>↓</kbd>, PgUp/PgDn, Home/End | Scroll                                         |
 | <kbd>z</kbd>                    | Switch Traditional / Simplified Chinese                      |
 | <kbd>t</kbd> / <kbd>T</kbd>     | Change color theme (forward / backward)                      |
 | <kbd>q</kbd>                    | Quit                                                         |
