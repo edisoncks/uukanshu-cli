@@ -262,6 +262,18 @@ def test_url_smalls_chapter_id_case_double_slash():
     assert u.parse_version("v") is None
 
 
+def test_parse_version_rejects_unicode_digits():
+    # str.isdigit() accepts superscripts/fullwidth digits that int() cannot
+    # parse; malformed must yield None, never raise (updater contract).
+    for bad in ("\u00b2", "1.\u00b2", "\uff11.\uff12", "\u0661.\u0662", "\u00b9"):
+        assert u.parse_version(bad) is None
+    assert u.is_newer("\u00b2", "1.0.0") is False
+    assert u.is_newer("1.0.\u00b2", u.__version__) is False
+    # Ordinary ASCII versions still parse and compare as before.
+    assert u.parse_version("v1.2.3") == (1, 2, 3)
+    assert u.is_newer("1.2.1", "1.2.0") is True
+
+
 def test_cached_latest_rejects_bool_checked_at(tmp_path, monkeypatch):
     import json
     p = tmp_path / "update.json"

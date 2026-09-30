@@ -97,7 +97,7 @@ because the trigger isn't a tag.
 Stable promise — don't break without a major version + docs update:
 
 - **Source:** GitHub API `https://api.github.com/repos/edisoncks/uukanshu-cli/releases/latest`, JSON field `tag_name`. Never scrape release HTML (layout changes would silently break it).
-- **Parsing:** strip leading `v`/`V` + whitespace, `parse_version("X.Y.Z") -> tuple[int]`. Malformed either side → `is_newer() == False` (fail silent, never nag wrongly). Zero-padded compare (`1.2` vs `1.2.0` equal).
+- **Parsing:** strip leading `v`/`V` + whitespace, `parse_version("X.Y.Z") -> tuple[int]`. Malformed either side → `is_newer() == False` (fail silent, never nag wrongly). Non-ASCII "digits" (superscript `²`, fullwidth `１`) count as malformed, never a crash. Zero-padded compare (`1.2` vs `1.2.0` equal).
 - **Cache:** 12h TTL (`_UPDATE_TTL = 12*3600`) in `_update_cache_path()`:
   - Linux: `$XDG_CACHE_HOME/uukanshu/update.json` or `~/.cache/uukanshu/update.json`
   - macOS: `~/Library/Caches/uukanshu/update.json`
