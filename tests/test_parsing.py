@@ -255,6 +255,18 @@ def test_retryable_fail_fast_url_errors():
     assert u._retryable(err500) is True
 
 
+def test_fetch_wraps_valueerror_url_errors(monkeypatch):
+    # urllib raises ValueError (not OSError/HTTPException) on malformed URLs
+    # like an unmatched '[' ("Invalid IPv6 URL") during Request construction,
+    # before any socket opens. It must surface as fetch's uniform RuntimeError
+    # so main() exits with a clean `error:` instead of an uncaught traceback.
+    import pytest
+    monkeypatch.setattr(u.time, "sleep", lambda _s: None)
+    with pytest.raises(RuntimeError) as ei:
+        u.fetch("http://[::1/book/123/456.html")
+    assert "failed to fetch" in str(ei.value)
+
+
 def test_url_smalls_chapter_id_case_double_slash():
     assert u.chapter_id("https://uukanshu.cc/BOOK/123/457.html") == 457
     assert u.book_url_from_arg("https://uukanshu.cc/book/123//") == \
