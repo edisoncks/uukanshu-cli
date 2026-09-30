@@ -26,13 +26,13 @@ jobs:
             asset: uukanshu-windows-x86_64.exe
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Build with the uv-managed Python toolchain. The binary's TLS
       # fingerprint differs between Python builds, and Cloudflare blocks
       # some of them — use the same toolchain the local builds are
       # verified with (see RELEASING.md).
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: "3.14"
 
@@ -53,7 +53,7 @@ jobs:
           dist/${{ matrix.asset }} --book 18957 --list > /dev/null
           echo 'smoke test OK'
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.asset }}
           path: dist/${{ matrix.asset }}
@@ -69,7 +69,7 @@ jobs:
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
