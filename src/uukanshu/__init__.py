@@ -298,7 +298,10 @@ def parse_version(s: str | None):
     nums = []
     for p in parts:
         p = p.strip()
-        if not p.isdigit():
+        # str.isdigit() is True for Unicode "digits" that int() rejects
+        # (superscripts like "²", fullwidth "１"); require ASCII digits
+        # so a malformed tag yields None instead of raising.
+        if not (p.isascii() and p.isdigit()):
             return None
         nums.append(int(p))
     return tuple(nums) if nums else None
