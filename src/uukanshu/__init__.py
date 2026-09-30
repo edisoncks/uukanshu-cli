@@ -254,9 +254,14 @@ def fetch(url: str) -> str:
         # gzip raises EOFError on a truncated body and zlib.error on a
         # corrupt payload (neither OSError nor HTTPException) — must be
         # caught or a flaky middlebox gives a raw traceback instead of a
-        # clean error. Unsupported-encoding/size RuntimeErrors must not
-        # retry.
-        except (OSError, http.client.HTTPException, EOFError, zlib.error) as exc:
+        # clean error. urllib.request.Request/urlparse raise ValueError on
+        # deterministic bad URLs (e.g. an unmatched '[' -> "Invalid IPv6
+        # URL") before any socket is opened; uncaught it would escape as a
+        # raw traceback past main()'s RuntimeError/OSError net, so wrap it
+        # here (_retryable marks it non-retryable). Unsupported-encoding/
+        # size RuntimeErrors must not retry.
+        except (OSError, http.client.HTTPException, EOFError, zlib.error,
+                ValueError) as exc:
             last_exc = exc
             if attempt == 2 or not _retryable(exc):
                 break
