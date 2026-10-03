@@ -153,7 +153,7 @@ with <kbd>1</kbd>–<kbd>4</kbd> or by clicking a tab.
 | <kbd>Enter</kbd>          | Open the book page (chapter list)           |
 | <kbd>n</kbd> / <kbd>→</kbd> | Next page of the list                     |
 | <kbd>p</kbd> / <kbd>←</kbd> | Previous page                             |
-| <kbd>d</kbd> / <kbd>u</kbd> | Half a page down / up                     |
+| <kbd>d</kbd> / <kbd>u</kbd> | Half a page down / up — on the Bookshelf tab, <kbd>d</kbd> removes the book |
 | <kbd>/</kbd>              | Jump to the search box                      |
 | <kbd>r</kbd>              | Refresh the list                            |
 | <kbd>Esc</kbd>            | Back to reading (says "press q" when nothing is open) |

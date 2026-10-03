@@ -11,7 +11,7 @@ site/network details are in [SCRAPING.md](SCRAPING.md).
 | ------------------------------- | ---------------------------------------------------------------------------------------- |
 | `src/uukanshu_main.py`          | PyInstaller entry point (imports the package; not shipped in the wheel)                   |
 | `src/uukanshu/site.py`          | Site contract: HTTPS fetching + HTML parsing (re-exported from the package)               |
-| `src/uukanshu/browse.py`        | Catalogue screens: recent / category / search tabs, card lists, page cache               |
+| `src/uukanshu/browse.py`        | Catalogue screens: recent / category / search / shelf tabs, card lists, page cache       |
 | `src/uukanshu/shelf.py`         | Local bookshelf: JSON reading-progress store (atomic, corrupt-tolerant)                  |
 | `src/uukanshu/__init__.py`      | Reader UI + CLI; re-exports `site` names so old callers keep working                      |
 | `pyproject.toml`                | Package metadata, dependencies, the `uukanshu` entry point                               |

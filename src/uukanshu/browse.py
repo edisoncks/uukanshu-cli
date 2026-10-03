@@ -272,10 +272,10 @@ class BookListPane(Vertical):
 
 
 class BrowseScreen(Screen):
-    """Catalogue home: recent / category / search tabs.
+    """Catalogue home: recent / category / search / shelf tabs.
 
     Pushed over the reader pane; Esc returns to reading. Tab headers are
-    clickable, 1-3 jump between them. See docs/ARCHITECTURE.md.
+    clickable, 1-4 jump between them. See docs/ARCHITECTURE.md.
     """
 
     CSS = """
