@@ -16,7 +16,7 @@ from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.screen import Screen
+from textual.screen import ModalScreen, Screen
 from textual.widgets import (
     Button,
     Footer,
@@ -30,7 +30,7 @@ from textual.widgets.option_list import Option
 from rich.text import Text
 
 from .site import CATEGORIES, Card, CardPage
-from .shelf import resolve_chapter
+from .shelf import relative_time, resolve_chapter
 
 
 class PageCache:
@@ -276,13 +276,14 @@ class BrowseScreen(Screen):
         Binding("1", "tab(0)", show=False),
         Binding("2", "tab(1)", show=False),
         Binding("3", "tab(2)", show=False),
+        Binding("4", "tab(3)", show=False),
         Binding("slash", "search", "search"),
         Binding("r", "refresh", "refresh"),
         Binding("z", "toggle_simplified", "simplified"),
     ]
 
-    TABS = ("tab-recent", "tab-category", "tab-search")
-    TAB_NAMES = ("最近更新", "分类", "搜索")
+    TABS = ("tab-recent", "tab-category", "tab-search", "tab-shelf")
+    TAB_NAMES = ("最近更新", "分类", "搜索", "书架")
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -302,6 +303,8 @@ class BrowseScreen(Screen):
                         yield Input(placeholder=self._ui("书名搜索…"),
                                     id="search-input")
                         yield BookListPane("search", id="pane-search")
+                with TabPane(self._tab_label(3), id="tab-shelf"):
+                    yield ShelfPane(id="pane-shelf")
         yield Footer()
 
     # -- app surface helpers
@@ -321,6 +324,8 @@ class BrowseScreen(Screen):
             return self.query_one("#pane-category", BookListPane)
         if active == "tab-search":
             return self.query_one("#pane-search", BookListPane)
+        if active == "tab-shelf":
+            return self.query_one("#pane-shelf", ShelfPane)
         return self.query_one("#pane-recent", BookListPane)
 
     # -- tab lifecycle
@@ -342,6 +347,8 @@ class BrowseScreen(Screen):
                 self.app.browse_ui.get("query", ""))
             self.query_one("#pane-search", BookListPane).ensure_loaded()
             self.query_one("#search-input", Input).focus()
+        elif pane_id == "tab-shelf":
+            self.query_one("#pane-shelf", ShelfPane).ensure_loaded().focus_list()
 
     def _sync_category_highlight(self) -> None:
         cid = str(self.app.browse_ui.get("category", 1))
@@ -390,6 +397,8 @@ class BrowseScreen(Screen):
         if highlighted is not None:
             ol.highlighted = min(highlighted, ol.option_count - 1)
         for pane in self.query(BookListPane):
+            pane.render_display()
+        for pane in self.query(ShelfPane):
             pane.render_display()
 
     # -- events
@@ -620,4 +629,166 @@ class DetailScreen(Screen):
         chapter = next((c for c in self.chapters if c.cid == cid), None)
         if chapter is not None:
             self.app.open_chapter(chapter.url)
+
+
+
+class ShelfPane(Vertical):
+    """Local bookshelf: one row per book, newest read first."""
+
+    BINDINGS = [
+        Binding("r", "refresh", "refresh"),
+        Binding("d", "remove", "remove"),
+        Binding("delete", "remove", show=False),
+    ]
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._rows: list = []
+        self._loaded = False
+
+    def compose(self) -> ComposeResult:
+        yield Static("", classes="list-status")
+        yield OptionList(classes="book-list")
+        yield Static("", classes="preview")
+
+    def ensure_loaded(self) -> "ShelfPane":
+        if not self._loaded:
+            self.load()
+        return self
+
+    def focus_list(self) -> "ShelfPane":
+        self.query_one(".book-list", OptionList).focus()
+        return self
+
+    def load(self) -> None:
+        self._loaded = True
+        self._rows = self.app.shelf.all()
+        self._refresh()
+
+    def action_refresh(self) -> None:
+        self.load()
+
+    def render_display(self) -> None:
+        self._refresh()
+
+    # -- rendering
+
+    def _status(self) -> str:
+        app = self.app
+        if not self._rows:
+            return app.ui("书架") + " · " + app.ui("读到哪本就会自动记在这里")
+        return app.ui("书架") + f" · {len(self._rows)} " + app.ui("本")
+
+    def _option_text(self, p) -> Text:
+        app = self.app
+        t = Text()
+        t.append(app.display(p.title or p.book_id), style="bold")
+        bits = []
+        if p.chapter_title:
+            bits.append(app.display(p.chapter_title))
+        bits.append(app.ui(relative_time(p.updated_at)))
+        t.append("\n  " + " · ".join(bits), style="dim")
+        return t
+
+    def _preview(self, p) -> None:
+        app = self.app
+        text = Text()
+        if p.author:
+            text.append(app.ui("作者") + "：" + app.display(p.author))
+        if p.chapter_url:
+            if text:
+                text.append("\n")
+            text.append(p.chapter_url, style="dim")
+        self.query_one(".preview", Static).update(text)
+
+    def _refresh(self) -> None:
+        self.query_one(".list-status", Static).update(self._status())
+        ol = self.query_one(".book-list", OptionList)
+        highlighted = ol.highlighted
+        ol.clear_options()
+        ol.add_options(Option(self._option_text(p), id=p.book_id)
+                       for p in self._rows)
+        if self._rows:
+            idx = min(highlighted if highlighted is not None else 0,
+                      len(self._rows) - 1)
+            ol.highlighted = idx
+            self._preview(self._rows[idx])
+        else:
+            self.query_one(".preview", Static).update("")
+
+    def _highlighted(self):
+        ol = self.query_one(".book-list", OptionList)
+        if ol.highlighted is None or not self._rows:
+            return None
+        return self._rows[min(ol.highlighted, len(self._rows) - 1)]
+
+    # -- actions
+
+    def action_remove(self) -> None:
+        p = self._highlighted()
+        if p is None:
+            return
+        bid = p.book_id
+        name = self.app.display(p.title or p.book_id)
+        self.app.push_screen(
+            ConfirmScreen(self.app.ui("移出书架") + "：" + name + "？"),
+            lambda ok: self._remove_confirmed(ok, bid))
+
+    def _remove_confirmed(self, ok: bool, bid: str) -> None:
+        if ok:
+            self.app.shelf.remove(bid)
+            self.load()
+
+    def on_option_list_option_selected(self, event) -> None:
+        bid = str(event.option.id)
+        row = next((p for p in self._rows if p.book_id == bid), None)
+        if row is None:
+            return
+        card = Card(int(bid) if bid.isdigit() else 0, row.title,
+                    row.author, "", "", "", None, "")
+        self.app.open_book(bid, card)
+
+
+class ConfirmScreen(ModalScreen):
+    """Small yes/no modal (shelf removal). y confirms, Esc cancels."""
+
+    CSS = """
+    ConfirmScreen { align: center middle; }
+    #confirm-box { width: auto; max-width: 70; height: auto;
+                   border: round $primary; background: $surface;
+                   padding: 1 2; }
+    #confirm-actions { height: auto; margin-top: 1; }
+    #confirm-actions Button { margin: 0 1 0 0; }
+    """
+
+    BINDINGS = [
+        Binding("escape", "cancel", "cancel"),
+        Binding("n", "cancel", show=False),
+        Binding("y", "confirm", show=False),
+    ]
+
+    def __init__(self, message: str, confirm_label: str = "移除"):
+        super().__init__()
+        self.message = message
+        self.confirm_label = confirm_label
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="confirm-box"):
+            yield Static(self.message)
+            with Horizontal(id="confirm-actions"):
+                yield Button(self.app.ui(self.confirm_label),
+                             id="confirm-yes", variant="error")
+                yield Button(self.app.ui("取消"), id="confirm-no")
+
+    def on_button_pressed(self, event) -> None:
+        if event.button.id == "confirm-yes":
+            self.dismiss(True)
+        elif event.button.id == "confirm-no":
+            self.dismiss(False)
+
+    def action_confirm(self) -> None:
+        self.dismiss(True)
+
+    def action_cancel(self) -> None:
+        self.dismiss(False)
 

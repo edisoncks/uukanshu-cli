@@ -629,6 +629,30 @@ class Reader(App):
         self._load_error = None
         self._render(book, title, text)
         self.query_one(VerticalScroll).scroll_home(immediate=True)
+        self._record_progress(book, title, url)
+
+    def _record_progress(self, book: str, chapter_title: str,
+                         url: str) -> None:
+        """Bookmark the displayed chapter on the local shelf.
+
+        Best-effort by design: a full disk or read-only data dir must never
+        break reading. The TOC position is recorded only when the parsed
+        TOC is already in hand; pageId alone is enough to resume.
+        """
+        if not self.book_id:
+            return
+        cid = chapter_id(url) or 0
+        pos = 0
+        if self.chapters_cache and self._cache_book == self.book_id:
+            hit = next((c for c in self.chapters_cache if c.cid == cid), None)
+            if hit is not None:
+                pos = hit.pos
+        try:
+            self.shelf.record(self.book_id, title=book, chapter_pos=pos,
+                              chapter_id=cid, chapter_title=chapter_title,
+                              chapter_url=url)
+        except Exception:
+            pass
 
     # -- navigation actions
 
