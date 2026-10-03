@@ -368,6 +368,34 @@ def test_b_key_opens_browse(tmp_path):
     asyncio.run(go())
 
 
+
+
+def test_reader_keys_do_not_fire_behind_pushed_screens(tmp_path):
+    cat = FakeCatalog()
+    cat.recent[1] = site.CardPage([card(1, "Book One")], 1, 1, None)
+    cat.details["1"] = site.BookDetail(
+        meta("Book One"), [u.Chapter(1, 10, "a", "u10")])
+    app = make_app(tmp_path, cat)
+    app.next_url = "NEXT"
+    seen = []
+    app.load_chapter = lambda url: seen.append(url)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            pane = app.screen.query_one("#pane-recent", browse.BookListPane)
+            assert await wait_until(pilot, lambda: pane.cards)
+            await pilot.press("enter")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
+            assert await wait_until(pilot, lambda: app.screen.chapters)
+            await pilot.press("n")
+            await pilot.pause(0.05)
+            assert seen == []
+
+    asyncio.run(go())
+
+
 def test_mouse_click_opens_detail(tmp_path):
     cat = FakeCatalog()
     cat.recent[1] = site.CardPage([card(1, "Book One")], 1, 1, None)

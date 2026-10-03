@@ -663,7 +663,10 @@ class Reader(App):
 
     @property
     def modal(self) -> bool:
-        return isinstance(self.screen, (TocScreen, BrowseScreen))
+        """True when a pushed screen owns the keyboard (chapter picker,
+        browse, detail, confirm modal): reader navigation must not fire
+        behind it — n/p/l/b would otherwise act on the chapter underneath."""
+        return len(self.screen_stack) > 1
 
     def action_next(self) -> None:
         if self.modal:
