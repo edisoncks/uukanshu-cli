@@ -2,9 +2,10 @@
 
 `uukanshu.cc` has no API — the app fetches plain HTML and parses it. Base:
 `https://uukanshu.cc`. TOC: `/book/<ID>/`. Chapter: `/book/<ID>/<N>.html`.
-All logic is in `fetch()`, `chapter_list()`, `extract_chapter()`, `link()`.
-Anchors are scanned once via `_iter_anchors()` so all parsers share one
-source; whitespace around `href = "..."` is tolerated (legal HTML).
+All logic is in `fetch()`, `chapter_list()`, `extract_chapter()`, `link()`,
+`parse_cards()`, `parse_search_page()`, `parse_book_meta()`. Anchors are
+scanned once via `_iter_anchors()` so all parsers share one source;
+whitespace around `href = "..."` is tolerated (legal HTML).
 
 ## Fetch
 
@@ -32,6 +33,27 @@ source; whitespace around `href = "..."` is tolerated (legal HTML).
 - Belt-and-braces: cut at last `\n上一章 章节/章節目录 下一章` row (tolerates simp/trad prefix, whitespace optional since stripped anchors may abut; no trailing guard so abutting footers still cut). Requires leading newline so in-body "上一章" mentions don't truncate.
 - Nav: `link()` resolves href via `urljoin` *before* chapter-shape check (so `456.html` validates after absolutize), single canonical fullmatch on scheme/host/path. Query/fragment stripped and the canonical URL without query is returned (consistent with `chapter_list`). Host compared case-insensitively. Anchor inner tags (`<span>`) and case variations tolerated. TOC-index / `lastchapter.php` stubs → `None` = end-of-book notice, not a parse failure.
 
+## Browse pages (cards)
+
+- Recently updated: `GET /top/lastupdate_<page>.html`; categories:
+  `GET /class_<id>_<page>.html` (ids 1–10, fixed `CATEGORIES`); search:
+  `POST /search` with fields `searchkey` + `searchtype=all` (results page 1),
+  later pages `GET /search/<quote(keyword)>_<page>.html`.
+- 30 cards per page. The pager carries `<em id="pagestats">p/total</em>`
+  (absent on pages without a pager → `parse_page_stats()` returns `None`).
+- Card: `div.bookbox` → `h4.bookname > a` (book id), `div.author` rows
+  (`作者`/`字數`/`閱讀量`), `div.cat > a` (latest chapter, canonicalized via
+  `canonical_chapter_url()`), `div.update` (`簡介`, label stripped). Class
+  **tokens** are matched, never exact class strings, so extra classes and
+  attribute order cannot break a parse.
+- Search pages carry `共有<b …> N </b>條結果`; `0` means no results. An
+  exact-title hit redirects to the full book page (`og:type=novel`,
+  `og:book_id`) — parsed as one card so the UI has a single shape.
+- Book meta: `h1.booktitle`, `p.booktag` (`a.red` author, `span.blue`
+  words/category, `span.red` status), `p.bookintro` (embeds an `<img>` —
+  tags are stripped), `p.booktime`, `a.bookchapter`. Meta tags are read
+  attribute-order-tolerantly via `_meta_map()`.
+
 ## TLS fingerprinting
 
 Cloudflare scores the TLS ClientHello. Some Python/OpenSSL builds get 403 from residential IPs while others pass — the frozen OpenSSL differs per toolchain. Hence:
@@ -51,5 +73,8 @@ Cloudflare scores the TLS ClientHello. Some Python/OpenSSL builds get 403 from r
 | `blocked by Cloudflare` everywhere | Cloudflare challenge tightened / TLS fingerprint blocked | Check toolchain first ([above](#tls-fingerprinting)), then consider `curl_cffi` |
 | `failed to fetch ...` + `zlib.error`/`EOFError` spikes | Middlebox truncating gzip | Retry/backoff in `fetch()`; don't swallow as parse error |
 | `unsupported Content-Encoding` | CDN started `br`/`zstd` | Add decoder or force `identity` — never ignore |
+| Browse lists empty / missing fields | `bookbox` card markup changed | `parse_cards()` + `_BOOKBOX_RE` |
+| Search total wrong or single hit not detected | `/search` count or `og:*` meta changed | `parse_search_page()` + `_meta_map()` |
+| Book detail header empty | `booktitle`/`booktag`/`bookintro` renamed | `parse_book_meta()` |
 
 Keep request rate low (single fetch per navigation, 12h updater cache). If markup changed, update regexes + this table in the same commit — see [CONTRIBUTING.md](CONTRIBUTING.md).
