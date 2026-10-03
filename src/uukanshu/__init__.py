@@ -14,7 +14,7 @@ WHAT YOU NEED
 
 KEYS (shown in the footer bar too)
   n / →       next chapter          p / ← previous chapter
-  b           browse — catalogue home: recently updated, categories,
+  b / Esc     browse — catalogue home: recently updated, categories,
               search, and your local bookshelf
   l           chapter list — opens instantly with a spinner while the list
               is fetched; cached per book. Esc or q closes it, Enter jumps
@@ -456,6 +456,7 @@ class Reader(App):
         Binding("left", "prev", show=False),
         Binding("l", "list", "chapters"),
         Binding("b", "browse", "browse"),
+        Binding("escape", "browse", "catalogue"),
         Binding("z", "toggle_simplified", "simplified"),
         Binding("t", "cycle_theme", "theme", key_display="t/T"),
         Binding("T", "cycle_theme_reverse", show=False),
@@ -683,6 +684,17 @@ class Reader(App):
             self.load_chapter(self.prev_url)
         else:
             self.notify(self.ui("已是第一章") + " / start of book", severity="warning")
+
+    # Reader-only actions; check_action() hides + disables them (footer
+    # included) while a pushed screen owns the keyboard, where they would
+    # be no-ops. Screen-owned bindings are unaffected (Textual resolves
+    # check_action against the binding's own namespace).
+    _READER_ACTIONS = frozenset({"next", "prev", "list", "browse", "half"})
+
+    def check_action(self, action: str, parameters) -> bool:
+        if action in self._READER_ACTIONS and self.modal:
+            return False
+        return True
 
     # -- catalogue actions
 

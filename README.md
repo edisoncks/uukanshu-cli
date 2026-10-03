@@ -132,7 +132,7 @@ title at `https://uukanshu.cc/modules/article/search.php?q=<title>`.
 | <kbd>n</kbd> / <kbd>→</kbd>     | Next chapter                                                 |
 | <kbd>p</kbd> / <kbd>←</kbd>     | Previous chapter                                             |
 | <kbd>l</kbd>                    | Chapter list — <kbd>Enter</kbd> jumps, <kbd>Esc</kbd> closes |
-| <kbd>b</kbd>                    | Browse the catalogue (see below)                            |
+| <kbd>b</kbd> / <kbd>Esc</kbd>   | Open the catalogue (see below)                              |
 | <kbd>d</kbd> / <kbd>u</kbd>     | Half a page down / up                                        |
 | <kbd>↑</kbd> / <kbd>↓</kbd>, PgUp/PgDn, Home/End | Scroll                                         |
 | <kbd>z</kbd>                    | Switch Traditional / Simplified Chinese                      |
@@ -153,6 +153,7 @@ with <kbd>1</kbd>–<kbd>4</kbd> or by clicking a tab.
 | <kbd>Enter</kbd>          | Open the book page (chapter list)           |
 | <kbd>n</kbd> / <kbd>→</kbd> | Next page of the list                     |
 | <kbd>p</kbd> / <kbd>←</kbd> | Previous page                             |
+| <kbd>d</kbd> / <kbd>u</kbd> | Half a page down / up                     |
 | <kbd>/</kbd>              | Jump to the search box                      |
 | <kbd>r</kbd>              | Refresh the list                            |
 | <kbd>Esc</kbd>            | Back to reading                             |

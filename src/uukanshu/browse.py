@@ -68,6 +68,8 @@ class BookListPane(Vertical):
         Binding("p", "page(-1)", "prev page"),
         Binding("right", "page(1)", show=False),
         Binding("left", "page(-1)", show=False),
+        Binding("d", "scroll_page(1)", "down"),
+        Binding("u", "scroll_page(-1)", "up"),
         Binding("r", "refresh", "refresh"),
     ]
 
@@ -222,6 +224,14 @@ class BookListPane(Vertical):
         self._refresh()
 
     # -- actions
+
+    def action_scroll_page(self, sign: int) -> None:
+        """Half-page list movement, matching the reader's d/u semantics."""
+        ol = self.query_one(".book-list", OptionList)
+        if sign > 0:
+            ol.action_page_down()
+        else:
+            ol.action_page_up()
 
     def action_page(self, sign: int) -> None:
         target = min(max(self.page + sign, 1), self.pages)
