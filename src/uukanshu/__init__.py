@@ -79,7 +79,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 # Site contract re-exported so existing callers/tests keep working
 # (`uukanshu.fetch`, `uukanshu.Chapter`, `uukanshu.chapter_list`, ...).
-from .browse import BrowseScreen, PageCache
+from .browse import BrowseScreen, DetailScreen, PageCache
 from .site import (
     BASE,
     HEADERS,
@@ -659,21 +659,9 @@ class Reader(App):
             return
         self.push_screen(BrowseScreen())
 
-    @work(exclusive=True, group="open-book")
-    async def open_book(self, book_id) -> None:
-        """Open a book from the catalogue at its first chapter."""
-        try:
-            detail = await asyncio.to_thread(self.catalog.book_detail, book_id)
-        except Exception as exc:
-            self.notify(self.ui("打开失败：")
-                        + f"{type(exc).__name__}: {exc}", severity="error")
-            return
-        if not detail.chapters:
-            self.notify(self.ui("没有找到章节") + " / no chapters",
-                        severity="error")
-            return
-        self.seed_toc(book_id, detail.chapters)
-        self.open_chapter(detail.chapters[0].url)
+    def open_book(self, book_id, card=None) -> None:
+        """Open the book-detail screen (catalogue cards, shelf rows)."""
+        self.push_screen(DetailScreen(book_id, card))
 
     def seed_toc(self, book_id, chapters) -> None:
         """Seed the reader TOC cache (a detail fetch already parsed it)."""
