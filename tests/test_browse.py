@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import uukanshu as u
 from uukanshu import browse, site
 from uukanshu import shelf as sh
-from textual.widgets import Footer, Input, OptionList, Static
+from textual.widgets import Footer, Input, OptionList, Static, TabbedContent
 
 
 def card(bid, title="Book", **kw):
@@ -557,6 +557,29 @@ def test_reader_footer_shows_escape_and_opens_browse(tmp_path):
             assert "b" not in rendered
             await pilot.press("escape")
             assert await wait_until(pilot, lambda: _browse_screen(app))
+
+    asyncio.run(go())
+
+
+def test_browse_reopens_on_last_tab(tmp_path):
+    cat = FakeCatalog()
+    cat.categories[(1, 1)] = site.CardPage([card(9, "武侠书")], 1, 1, None)
+    app = make_app(tmp_path, cat, url="https://uukanshu.cc/book/1/10.html")
+    app.load_chapter = lambda url: None
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            await pilot.pause(0.05)
+            app._raw = ("Book", "Chapter", "text")  # Esc may return to it
+            await pilot.press("b")
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            await pilot.press("2")
+            assert await wait_until(pilot, lambda: app.browse_ui["tab"] == 1)
+            await pilot.press("escape")
+            assert await wait_until(pilot, lambda: not _browse_screen(app))
+            await pilot.press("b")
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            assert app.screen.query_one(TabbedContent).active == "tab-category"
 
     asyncio.run(go())
 

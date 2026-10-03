@@ -307,9 +307,13 @@ class BrowseScreen(Screen):
     TAB_NAMES = ("最近更新", "分类", "搜索", "书架")
 
     def compose(self) -> ComposeResult:
+        # Reopen on the tab left last session (browse_ui is app-wide).
+        last = self.app.browse_ui.get("tab", 0)
+        initial = (self.TABS[last] if isinstance(last, int)
+                   and 0 <= last < len(self.TABS) else self.TABS[0])
         with Vertical():
             yield Static(self._ui("书城") + " / Browse", id="browse-title")
-            with TabbedContent(initial=self.TABS[0]):
+            with TabbedContent(initial=initial):
                 with TabPane(self._tab_label(0), id="tab-recent"):
                     yield BookListPane("recent", id="pane-recent")
                 with TabPane(self._tab_label(1), id="tab-category"):
