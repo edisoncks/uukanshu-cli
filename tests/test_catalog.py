@@ -71,6 +71,26 @@ def test_parse_cards_basic():
     assert b.intro == "少年唐三 ..."
 
 
+
+
+def test_parse_cards_div_bookname_hot_span():
+    # Search results use div.bookname (recent/category use h4) and wrap the
+    # matched keyword in <span class="hot">.
+    page = (
+        '<div class="bookbox"><div class="bookname">'
+        '<a href="https://uukanshu.cc/book/26986/">'
+        '<span class="hot">斗羅</span>：龍王之聖耀本體</a></div>'
+        '<div class="author">作者：<a href="/author/x.html">雨下聽石</a></div>'
+        '<div class="cat"><a href="/book/26986/1.html">第1章</a></div></div>'
+    )
+    cards = site.parse_cards(page)
+    assert len(cards) == 1
+    c = cards[0]
+    assert (c.bid, c.title, c.author) == (
+        26986, "斗羅：龍王之聖耀本體", "雨下聽石")
+    assert c.latest_url == "https://uukanshu.cc/book/26986/1.html"
+
+
 def test_parse_cards_skips_bad_boxes():
     page = (
         '<div class="bookbox"><h4 class="bookname">'
