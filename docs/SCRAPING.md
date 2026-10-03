@@ -42,7 +42,9 @@ whitespace around `href = "..."` is tolerated (legal HTML).
   sends the form body as `application/x-www-form-urlencoded`.
 - 30 cards per page. The pager carries `<em id="pagestats">p/total</em>`
   (absent on pages without a pager → `parse_page_stats()` returns `None`).
-- Card: `div.bookbox` → `h4.bookname > a` (book id), `div.author` rows
+- Card: `div.bookbox` → `.bookname > a` (book id; an `h4` on
+  recent/category pages, a `div` on search pages — class token, not tag),
+  `div.author` rows
   (`作者`/`字數`/`閱讀量`), `div.cat > a` (latest chapter, canonicalized via
   `canonical_chapter_url()`), `div.update` (`簡介`, label stripped). Class
   **tokens** are matched, never exact class strings, so extra classes and

@@ -428,8 +428,10 @@ class BookMeta(NamedTuple):
 # classes / attribute order cannot break a parse; see SCRAPING.md.
 _BOOKBOX_RE = re.compile(
     r'<div\b[^>]*class\s*=\s*["\'][^"\']*\bbookbox\b[^"\']*["\'][^>]*>', re.I)
+# The name container is an h4 on recent/category pages and a div on
+# search pages; match the class token on any tag (backreference closes it).
 _BOOKNAME_RE = re.compile(
-    r'<h4\b[^>]*class\s*=\s*["\'][^"\']*\bbookname\b[^"\']*["\'][^>]*>(.*?)</h4>',
+    r'<(\w+)\b[^>]*class\s*=\s*["\'][^"\']*\bbookname\b[^"\']*["\'][^>]*>(.*?)</\1>',
     re.S | re.I)
 _AUTHOR_DIV_RE = re.compile(
     r'<div\b[^>]*class\s*=\s*["\'][^"\']*\bauthor\b[^"\']*["\'][^>]*>(.*?)</div>',
@@ -524,16 +526,18 @@ def parse_cards(page: str) -> list[Card]:
     """Book cards from a recent/category/search results page.
 
     Each bookbox block parses independently: missing fields degrade to empty
-    strings and cards without a usable book link are dropped. Pagination
-    markup after the last block never matches the field regexes. See
-    SCRAPING.md.
+    strings and cards without a usable book link are dropped. The name
+    container may be an h4 (recent/category) or a div (search) - matched by
+    class token, never by tag. Pagination markup after the last block never
+    matches the field regexes. See SCRAPING.md.
     """
     out: list[Card] = []
     for seg in _BOOKBOX_RE.split(page)[1:]:
         m = _BOOKNAME_RE.search(seg)
         if not m:
             continue
-        anchors = _iter_anchors(m.group(1))
+        # group(1) is the tag name (backreference); group(2) is the inner HTML.
+        anchors = _iter_anchors(m.group(2))
         if not anchors:
             continue
         href, inner = anchors[0]
