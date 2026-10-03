@@ -47,7 +47,7 @@ because the reader's own `z` refuses when no chapter is loaded.
 | `--book ID` [+ `--chapter N`] | Same as book URL via `${BASE}/book/<ID>/`. |
 | `--book` / book URL + `--list` | Print TOC, exit. `--chapter` / `--print` + `--list` → error. |
 | `--print` | Fetch one chapter, print `book\\ntitle\\n\\ntext`, exit. No TUI. |
-| Nothing | `error: give a chapter URL or --book <id>`. |
+| Nothing | Bare launch: browse screen (catalogue home). `--chapter` alone → error. |
 
 `_check_chapter()` never clamps — out-of-range exits with the book's chapter count.
 

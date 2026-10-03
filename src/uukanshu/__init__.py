@@ -14,6 +14,8 @@ WHAT YOU NEED
 
 KEYS (shown in the footer bar too)
   n / →       next chapter          p / ← previous chapter
+  b           browse — catalogue home: recently updated, categories,
+              search, and your local bookshelf
   l           chapter list — opens instantly with a spinner while the list
               is fetched; cached per book. Esc or q closes it, Enter jumps
   q           quit
@@ -28,6 +30,9 @@ KEYS (shown in the footer bar too)
   Built-in messages follow the content's mode; -z starts in Simplified.
 
 EXAMPLES
+  # browse the catalogue: recently updated, categories, search, shelf
+  uukanshu
+
   # browse a book's chapter list, then pick one by number
   uukanshu --book <ID> --list
   uukanshu --book <ID> --chapter 6
@@ -837,6 +842,16 @@ def _check_chapter(n: int, total: int) -> None:
                  f"{total} chapters (try --list)")
 
 
+def _has_target(args) -> bool:
+    """True when the CLI names a book or chapter.
+
+    A bare launch (no URL, no --book) opens the browse screen instead of
+    erroring, so the old "give a chapter URL or --book" exit only applies
+    to the non-interactive modes (--list / --print). See ARCHITECTURE.md.
+    """
+    return bool((args.url or "").strip() or (args.book or "").strip())
+
+
 def resolve_start_url(args):
     """Return (chapter_url, chapters) for the requested start point.
 
@@ -1023,6 +1038,16 @@ def run():
             t = cc.convert(ch.title) if cc else ch.title
             print(f"{ch.pos:>5}  {t}")
         return
+
+    if not _has_target(args):
+        if args.chapter is not None:
+            sys.exit("error: --chapter needs a book URL or --book <id>.")
+        if not args.plain:
+            # Bare launch: the catalogue home over an empty reader pane.
+            Reader(None, cc, args.simplified, args.pad, args.theme,
+                   chapters=None,
+                   update_check=not args.no_update_check).run()
+            return
 
     url, chapters = resolve_start_url(args)
 

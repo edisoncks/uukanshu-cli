@@ -295,6 +295,47 @@ def test_cached_latest_rejects_bool_checked_at(tmp_path, monkeypatch):
     assert u._load_cached_latest() == (None, None)
 
 
+
+
+# --- bare launch ---
+
+def test_has_target():
+    assert u._has_target(_Args()) is False
+    assert u._has_target(_Args(url="   ")) is False
+    assert u._has_target(_Args(book=" ")) is False
+    assert u._has_target(_Args(book="123")) is True
+    assert u._has_target(
+        _Args(url="https://uukanshu.cc/book/1/2.html")) is True
+
+
+def test_run_bare_launch_opens_browse(monkeypatch):
+    import sys as _sys
+    captured = {}
+
+    class FakeReader:
+        def __init__(self, url, cc, simplified, pad, theme="night",
+                     chapters=None, update_check=True, **kw):
+            captured.update(url=url, chapters=chapters, theme=theme)
+
+        def run(self):
+            captured["ran"] = True
+
+    monkeypatch.setattr(u, "Reader", FakeReader)
+    monkeypatch.setattr(_sys, "argv", ["uukanshu"])
+    u.run()
+    assert captured["ran"] is True
+    assert captured["url"] is None
+    assert captured["chapters"] is None
+
+
+def test_run_chapter_without_target_errors(monkeypatch):
+    import sys as _sys
+    import pytest
+    monkeypatch.setattr(_sys, "argv", ["uukanshu", "--chapter", "5"])
+    with pytest.raises(SystemExit):
+        u.run()
+
+
 def test_href_spaces_around_equals():
     rows = u.chapter_list('<a href = "/book/123/5.html">T</a>', "123")
     assert len(rows) == 1 and rows[0].cid == 5
