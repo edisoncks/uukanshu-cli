@@ -455,7 +455,9 @@ class Reader(App):
         Binding("right", "next", show=False),
         Binding("left", "prev", show=False),
         Binding("l", "list", "chapters"),
-        Binding("b", "browse", "browse"),
+        # b is an alias; Textual's Footer renders only the first binding per
+        # action, so Esc is the one shown (the standard back affordance).
+        Binding("b", "browse", "browse", show=False),
         Binding("escape", "browse", "catalogue"),
         Binding("z", "toggle_simplified", "simplified"),
         Binding("t", "cycle_theme", "theme", key_display="t/T"),
