@@ -156,7 +156,7 @@ with <kbd>1</kbd>–<kbd>4</kbd> or by clicking a tab.
 | <kbd>d</kbd> / <kbd>u</kbd> | Half a page down / up                     |
 | <kbd>/</kbd>              | Jump to the search box                      |
 | <kbd>r</kbd>              | Refresh the list                            |
-| <kbd>Esc</kbd>            | Back to reading                             |
+| <kbd>Esc</kbd>            | Back to reading (says "press q" when nothing is open) |
 | <kbd>q</kbd>              | Quit                                        |
 
 In the **Search** tab, type a book title and press <kbd>Enter</kbd>. The
@@ -238,8 +238,14 @@ by itself. If it keeps failing, check your connection and try again later.
 If you see **"blocked by Cloudflare"**, try again later or from a different
 network.
 
-**"error: give a chapter URL or --book \<id\>"** — you need to say what to
-read: paste a chapter or book address, or use `--book <ID>`.
+**"error: give a chapter URL or --book \<id\>"** — this comes from the
+non-interactive modes (e.g. `--print`) when no book is named. Paste a
+chapter or book address, or use `--book <ID>`. Running `uukanshu` with no
+address opens the catalogue instead.
+
+**Search page 2 shows the same books as page 1** — the site's own search
+paging is unreliable for some keywords (upstream, not the app's cache).
+Try another keyword or the Categories tab.
 
 **"could not find chapter content"** — the address must be a **chapter**
 (`…/book/<ID>/<CHAPTER>.html`), not the book front page. Going past the
