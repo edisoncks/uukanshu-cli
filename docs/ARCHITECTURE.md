@@ -36,7 +36,12 @@ the whole browse stack (`Reader._close_browse`) and loads it in the reader. Scre
 through `ui` / `display` / `open_book` / `open_chapter` / `catalog` /
 `browse_cache` / `browse_ui` only, so pilot tests inject a fake catalog and
 run without network. `z` is handled at screen level (re-render in place)
-because the reader's own `z` refuses when no chapter is loaded.
+because the reader's own `z` refuses when no chapter is loaded. Reader-only
+App bindings (`n`/`p`/`l`/`b`/`d`/`u`) are disabled *and hidden* by
+`Reader.check_action` while a pushed screen owns the keyboard, so the footer
+never advertises a key that would be a no-op; screen-owned bindings (e.g.
+the chapter picker's own `d`/`u`) are unaffected. `Esc` on the reader opens
+the catalogue, mirroring `b`.
 
 ## CLI resolution
 

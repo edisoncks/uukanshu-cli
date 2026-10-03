@@ -396,6 +396,100 @@ def test_reader_keys_do_not_fire_behind_pushed_screens(tmp_path):
     asyncio.run(go())
 
 
+
+
+def _actions(screen):
+    return {k: v[1].action for k, v in screen.active_bindings.items()}
+
+
+def test_footer_hides_reader_keys_on_browse(tmp_path):
+    cat = FakeCatalog()
+    cat.recent[1] = site.CardPage([card(1)], 1, 1, None)
+    app = make_app(tmp_path, cat)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            actions = _actions(app.screen)
+            # Reader-only App bindings are gone from the footer.
+            assert "l" not in actions
+            assert "b" not in actions
+            # d/u are the pane's working list-scroll bindings, not the
+            # disabled reader half-page ones.
+            assert actions.get("d") == "scroll_page(1)"
+            assert actions.get("u") == "scroll_page(-1)"
+            assert actions.get("n") == "page(1)"
+            assert actions.get("p") == "page(-1)"
+            assert "escape" in actions and "z" in actions and "q" in actions
+
+    asyncio.run(go())
+
+
+def test_reader_footer_shows_navigation_and_escape_opens_browse(tmp_path):
+    cat = FakeCatalog()
+    app = make_app(tmp_path, cat, url="https://uukanshu.cc/book/1/10.html")
+    app.load_chapter = lambda url: None
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            await pilot.pause(0.05)
+            actions = _actions(app.screen)
+            assert actions.get("l") == "list"
+            assert actions.get("b") == "browse"
+            assert actions.get("escape") == "browse"
+            await pilot.press("escape")
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+
+    asyncio.run(go())
+
+
+def test_browse_d_u_scroll_list(tmp_path):
+    cat = FakeCatalog()
+    cat.recent[1] = site.CardPage(
+        [card(i, f"Book {i}") for i in range(1, 61)], 1, 1, None)
+    app = make_app(tmp_path, cat)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            pane = app.screen.query_one("#pane-recent", browse.BookListPane)
+            assert await wait_until(pilot, lambda: len(pane.cards) == 60)
+            ol = pane.query_one(".book-list", OptionList)
+            assert ol.highlighted == 0
+            await pilot.press("d")
+            assert await wait_until(pilot, lambda: ol.highlighted > 0)
+            first = ol.highlighted
+            await pilot.press("u")
+            assert await wait_until(pilot, lambda: ol.highlighted < first)
+
+    asyncio.run(go())
+
+
+def test_toc_half_page_still_works(tmp_path):
+    cat = FakeCatalog()
+    app = make_app(tmp_path, cat, url="https://uukanshu.cc/book/1/10.html")
+    app.load_chapter = lambda url: None
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            await pilot.pause(0.05)
+            screen = u.TocScreen(app.url)
+            await app.push_screen(screen)
+            await pilot.pause(0.05)
+            screen.populate([u.Chapter(1, 10, "Ch1", "u1")]
+                            + [u.Chapter(i, 1000 + i, f"Ch{i}", f"u{i}")
+                               for i in range(2, 61)])
+            await pilot.pause(0.05)
+            ol = screen.query_one(OptionList)
+            assert ol.highlighted == 0
+            # Screen-namespace check_action is untouched by Reader.check_action:
+            # the chapter picker's own d/u must keep working.
+            await pilot.press("d")
+            assert await wait_until(pilot, lambda: ol.highlighted > 0)
+
+    asyncio.run(go())
+
+
 def test_mouse_click_opens_detail(tmp_path):
     cat = FakeCatalog()
     cat.recent[1] = site.CardPage([card(1, "Book One")], 1, 1, None)
