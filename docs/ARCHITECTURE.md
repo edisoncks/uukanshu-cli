@@ -25,23 +25,32 @@ live in [SCRAPING.md](SCRAPING.md).
 ## Browse screens
 
 `browse.py` holds the catalogue UI pushed over the reader pane. Tabs load
-lazily; `n`/`p` page a list; `Enter` opens `DetailScreen` (book meta + full
-chapter list, seeded into the reader TOC cache); `Esc` pops back. The
-fourth tab is `ShelfPane` (local shelf, newest read first; `d` removes with
-a `ConfirmScreen` modal). On the
-detail screen `Enter` reads the selected chapter, `o` resumes (stable
-`pageId` -> position -> stored URL -> chapter 1 via
-`shelf.resolve_chapter`), and `s` toggles the shelf. Opening a chapter pops
-the whole browse stack (`Reader._close_browse`) and loads it in the reader. Screens talk to the app
-through `ui` / `display` / `open_book` / `open_chapter` / `catalog` /
-`browse_cache` / `browse_ui` only, so pilot tests inject a fake catalog and
-run without network. `z` is handled at screen level (re-render in place)
-because the reader's own `z` refuses when no chapter is loaded. Reader-only
-App bindings (`n`/`p`/`l`/`b`/`d`/`u`) are disabled *and hidden* by
-`Reader.check_action` while a pushed screen owns the keyboard, so the footer
-never advertises a key that would be a no-op; screen-owned bindings (e.g.
-the chapter picker's own `d`/`u`) are unaffected. `Esc` on the reader opens
-the catalogue, mirroring `b`.
+lazily (the search tab stays idle until a keyword is submitted; `PageCache`
+makes revisits instant); `n`/`p` page a list; `Enter` opens `DetailScreen`
+(book meta + full chapter list, seeded into the reader TOC cache); `Esc`
+pops back. The fourth tab is `ShelfPane` (local shelf, newest read first;
+`d` removes with a `ConfirmScreen` modal). On the detail screen `Enter`
+reads the selected chapter, `o` resumes (stable `pageId` -> position ->
+stored URL -> chapter 1 via `shelf.resolve_chapter`), and `s` toggles the
+shelf. Opening a chapter pops the whole browse stack
+(`Reader._close_browse`) and loads it in the reader. Screens talk to the
+app through `ui` / `display` / `open_book` / `open_chapter` / `seed_toc` /
+`catalog` / `shelf` / `simplified` / `browse_cache` / `browse_ui`, so pilot
+tests inject a fake catalog and shelf and run without network. `browse_ui`
+holds the last tab / category / query across browse sessions; `BrowseScreen`
+restores them on open, and a resumed browse screen re-reads an already
+loaded shelf pane (`on_screen_resume` -> `ShelfPane.reload_if_loaded`) so a
+detail-screen `s` toggle shows immediately. External text (search keyword,
+card/meta/chapter titles, intros) is rendered as plain text:
+`Static(..., markup=False)` / `OptionList(markup=False)` — a title
+containing Rich-like markup (e.g. `[/b]`) can never crash the TUI. `z` is
+handled at screen level (re-render in place) because the reader's own `z`
+refuses when no chapter is loaded. Reader-only App bindings
+(`n`/`p`/`l`/`b`/`d`/`u`) are disabled *and hidden* by `Reader.check_action`
+while a pushed screen owns the keyboard, so the footer never advertises a
+key that would be a no-op; screen-owned bindings (e.g. the chapter picker's
+own `d`/`u`) are unaffected. `Esc` on the reader opens the catalogue,
+mirroring `b`.
 
 ## CLI resolution
 
@@ -78,7 +87,7 @@ server — progress stays on this machine.
 
 ## Config precedence
 
-Flag > env (`UUKANSHU_*`) > default. `UUKANSHU_THEME` whitespace-stripped and validated against theme names; `UUKANSHU_PAD` / `UUKANSHU_SIMPLIFIED` / `UUKANSHU_NO_UPDATE_CHECK` parsed with clean `error:` exits. See [DEVELOPMENT.md](DEVELOPMENT.md#appendix-full-cli-reference) and updater contract in [RELEASING.md](RELEASING.md#updater-contract).
+Flag > env (`UUKANSHU_*`) > default. `UUKANSHU_THEME` whitespace-stripped and validated against theme names; `UUKANSHU_PAD` must be a non-negative integer — both exit with a clean `error:` on a bad value. `UUKANSHU_SIMPLIFIED` (`== "1"`) / `UUKANSHU_NO_UPDATE_CHECK` (`1`/`true`/`yes`/`on`) are lenient booleans: any other value simply means off. See [DEVELOPMENT.md](DEVELOPMENT.md#appendix-full-cli-reference) and updater contract in [RELEASING.md](RELEASING.md#updater-contract).
 
 ## Themes
 
