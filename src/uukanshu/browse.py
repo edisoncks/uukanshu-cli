@@ -393,6 +393,11 @@ class BrowseScreen(Screen):
 
     def action_tab(self, i: int) -> None:
         self._activate(i)
+        if i == 2:
+            # Setting `active` to the tab that is already active posts no
+            # TabActivated message, so on_tabbed_content_tab_activated never
+            # runs and the search box keeps the old focus; claim it here.
+            self.query_one("#search-input", Input).focus()
 
     def action_back(self) -> None:
         if (getattr(self.app, "_raw", None) is not None
@@ -402,7 +407,8 @@ class BrowseScreen(Screen):
             self.notify(self._ui("按 q 退出") + " / press q to quit")
 
     def action_search(self) -> None:
-        self._activate(2)
+        """Jump to the search box — the documented `/` binding."""
+        self.action_tab(2)
 
     def action_refresh(self) -> None:
         self._active_pane().action_refresh()
