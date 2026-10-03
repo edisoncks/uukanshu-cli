@@ -133,6 +133,38 @@ def test_search_submit(tmp_path):
     asyncio.run(go())
 
 
+def test_search_box_refocuses_while_tab_is_active(tmp_path):
+    cat = FakeCatalog()
+    cat.searches[("斗罗", 1)] = site.CardPage([card(7, "斗罗大陆")], 1, 1, 3)
+    app = make_app(tmp_path, cat)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            await pilot.press("3")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.focused, Input))
+            inp = app.screen.query_one("#search-input", Input)
+            inp.value = "斗罗"
+            await pilot.press("enter")
+            pane = app.screen.query_one("#pane-search", browse.BookListPane)
+            assert await wait_until(pilot, lambda: pane.cards)
+            assert await wait_until(
+                pilot, lambda: isinstance(app.focused, OptionList))
+            # Both documented ways back to the box must work even though the
+            # search tab is already active (no TabActivated message fires).
+            await pilot.press("slash")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.focused, Input))
+            pane.focus_list()
+            await pilot.pause(0.05)
+            await pilot.press("3")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.focused, Input))
+
+    asyncio.run(go())
+
+
 def test_search_tab_idle_until_submitted(tmp_path):
     cat = FakeCatalog()
     cat.searches[("斗罗", 1)] = site.CardPage([card(7, "斗罗大陆")], 1, 1, 3)
