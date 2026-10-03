@@ -141,7 +141,7 @@ Press <kbd>b</kbd> while reading to open the catalogue. It has three tabs —
 | Key                       | What it does                                |
 | ------------------------- | ------------------------------------------- |
 | <kbd>↑</kbd>/<kbd>↓</kbd>, mouse wheel | Pick a book                      |
-| <kbd>Enter</kbd>          | Open the selected book (starts at chapter 1)|
+| <kbd>Enter</kbd>          | Open the book page (chapter list)           |
 | <kbd>n</kbd> / <kbd>→</kbd> | Next page of the list                     |
 | <kbd>p</kbd> / <kbd>←</kbd> | Previous page                             |
 | <kbd>/</kbd>              | Jump to the search box                      |
@@ -151,6 +151,11 @@ Press <kbd>b</kbd> while reading to open the catalogue. It has three tabs —
 
 In the **Search** tab, type a book title and press <kbd>Enter</kbd>. The
 **Categories** tab lists the ten site categories on the left.
+
+On a book page, <kbd>Enter</kbd> reads the selected chapter, <kbd>o</kbd>
+continues from your last position (or starts at chapter 1), and
+<kbd>s</kbd> adds or removes the book from your bookshelf. <kbd>Esc</kbd>
+returns to the catalogue.
 
 ---
 

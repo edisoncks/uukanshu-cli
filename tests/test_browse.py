@@ -154,7 +154,33 @@ def test_category_select(tmp_path):
     asyncio.run(go())
 
 
-def test_enter_opens_first_chapter(tmp_path):
+def test_enter_pushes_detail(tmp_path):
+    cat = FakeCatalog()
+    cat.recent[1] = site.CardPage([card(1, "Book One")], 1, 1, None)
+    cat.details["1"] = site.BookDetail(
+        meta("Book One"),
+        [u.Chapter(1, 10, "第一章", "https://uukanshu.cc/book/1/10.html")])
+    app = make_app(tmp_path, cat)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            pane = app.screen.query_one("#pane-recent", browse.BookListPane)
+            assert await wait_until(pilot, lambda: pane.cards)
+            await pilot.press("enter")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
+            assert await wait_until(pilot, lambda: app.screen.chapters)
+            ol = app.screen.query_one("#chapter-list", OptionList)
+            assert ol.option_count == 1
+            # Detail seeds the reader TOC so l does not refetch.
+            assert app.chapters_cache == cat.details["1"].chapters
+            assert ("detail", "1") in cat.calls
+
+    asyncio.run(go())
+
+
+def test_detail_select_chapter_reads(tmp_path):
     cat = FakeCatalog()
     cat.recent[1] = site.CardPage([card(1, "Book One")], 1, 1, None)
     cat.details["1"] = site.BookDetail(
@@ -171,9 +197,65 @@ def test_enter_opens_first_chapter(tmp_path):
             assert await wait_until(pilot, lambda: pane.cards)
             await pilot.press("enter")
             assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
+            assert await wait_until(pilot, lambda: app.screen.chapters)
+            await pilot.press("enter")
+            assert await wait_until(
                 pilot, lambda: seen == ["https://uukanshu.cc/book/1/10.html"])
             assert await wait_until(pilot, lambda: len(app.screen_stack) == 1)
-            assert app.chapters_cache == cat.details["1"].chapters
+
+    asyncio.run(go())
+
+
+def test_detail_resume_uses_page_id(tmp_path):
+    cat = FakeCatalog()
+    cat.recent[1] = site.CardPage([card(1, "Book One")], 1, 1, None)
+    cat.details["1"] = site.BookDetail(
+        meta("Book One"),
+        [u.Chapter(1, 10, "a", "u10"), u.Chapter(2, 20, "b", "u20")])
+    app = make_app(tmp_path, cat)
+    # Stored position says 2, pageId says 10: stable identity must win.
+    app.shelf.record("1", title="Book One", chapter_pos=2, chapter_id=10)
+    seen = []
+    app.load_chapter = lambda url: seen.append(url)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            pane = app.screen.query_one("#pane-recent", browse.BookListPane)
+            assert await wait_until(pilot, lambda: pane.cards)
+            await pilot.press("enter")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
+            assert await wait_until(pilot, lambda: app.screen.chapters)
+            await pilot.press("o")
+            assert await wait_until(pilot, lambda: seen == ["u10"])
+
+    asyncio.run(go())
+
+
+def test_detail_toggle_shelf(tmp_path):
+    cat = FakeCatalog()
+    cat.recent[1] = site.CardPage([card(1, "Book One")], 1, 1, None)
+    cat.details["1"] = site.BookDetail(
+        meta("Book One"),
+        [u.Chapter(1, 10, "第一章", "https://uukanshu.cc/book/1/10.html")])
+    app = make_app(tmp_path, cat)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            pane = app.screen.query_one("#pane-recent", browse.BookListPane)
+            assert await wait_until(pilot, lambda: pane.cards)
+            await pilot.press("enter")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
+            assert await wait_until(pilot, lambda: app.screen.chapters)
+            await pilot.press("s")
+            assert app.shelf.get("1") is not None
+            assert app.shelf.get("1").title == "Book One"
+            await pilot.press("s")
+            assert app.shelf.get("1") is None
 
     asyncio.run(go())
 
@@ -196,15 +278,13 @@ def test_simplified_toggle_rerenders(tmp_path):
     asyncio.run(go())
 
 
-def test_mouse_click_selects_and_opens(tmp_path):
+def test_mouse_click_opens_detail(tmp_path):
     cat = FakeCatalog()
     cat.recent[1] = site.CardPage([card(1, "Book One")], 1, 1, None)
     cat.details["1"] = site.BookDetail(
         meta("Book One"),
         [u.Chapter(1, 10, "第一章", "https://uukanshu.cc/book/1/10.html")])
     app = make_app(tmp_path, cat)
-    seen = []
-    app.load_chapter = lambda url: seen.append(url)
 
     async def go():
         async with app.run_test(size=(100, 32)) as pilot:
@@ -212,6 +292,7 @@ def test_mouse_click_selects_and_opens(tmp_path):
             pane = app.screen.query_one("#pane-recent", browse.BookListPane)
             assert await wait_until(pilot, lambda: pane.cards)
             await pilot.click(pane.query_one(".book-list"), offset=(3, 1))
-            assert await wait_until(pilot, lambda: bool(seen))
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
 
     asyncio.run(go())

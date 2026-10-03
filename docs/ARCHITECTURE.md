@@ -16,7 +16,7 @@ live in [SCRAPING.md](SCRAPING.md).
 - `chapter_id(url)`, `absolutize(href, url)`: URL helpers (`site.py`); `book_url_from_arg(url)`: CLI-side book-URL normalizer (`__init__.py`).
 - `parse_cards(page)` / `parse_search_page(page)` / `parse_book_meta(page, url)`: browse cards (`bookbox`), search totals + single hits, book-detail headers. Class tokens, tags stripped. See [SCRAPING.md](SCRAPING.md).
 - `Catalog`: network facade (`recent_page` / `category_page` / `search_page` / `book_detail`); one user action = one fetch, injectable for UI tests. `CardPage` / `BookDetail` / `Card` / `BookMeta` are the browse data shapes. Book URLs accept `http(s)`, `www` (any case), trailing `/index.html`, redundant slashes collapsed, query/fragment stripped, host lowercased; chapter URLs stripped of pasted whitespace; chapter path match case-insensitive.
-- `browse.py` — catalogue screens pushed over the reader pane: `BrowseScreen` (recent / category / search tabs), `BookListPane` (one paginated card list), `PageCache` (app-owned LRU so returning from the reader is instant). See [Browse screens](#browse-screens).
+- `browse.py` — catalogue screens pushed over the reader pane: `BrowseScreen` (recent / category / search tabs), `BookListPane` (one paginated card list), `DetailScreen` (meta + chapter list + resume), `PageCache` (app-owned LRU so returning from the reader is instant). See [Browse screens](#browse-screens).
 - `shelf.py` — local bookshelf: one `Progress` per book, JSON + atomic replace, corrupt file reads empty (`UUKANSHU_DATA_DIR` override). `resolve_chapter()` resume order: stable `pageId` → TOC `position` → stored URL → chapter 1.
 - `TocScreen` / `TocOptionList`: modal chapter picker. Opens scrolled to current chapter (`scroll_to_highlight(top=True)`); `d/u` move half-page with selection.
 - `Reader(App)`: Textual reader. `load_chapter` (`@work exclusive, group="nav"`), `fetch_toc` (`group="toc"`), `check_update` (`group="update"`). Never raises into TUI — fetch errors render in-pane.
@@ -25,9 +25,12 @@ live in [SCRAPING.md](SCRAPING.md).
 ## Browse screens
 
 `browse.py` holds the catalogue UI pushed over the reader pane. Tabs load
-lazily; `n`/`p` page a list; `Enter` opens a book; `Esc` pops back to the
-reader. Opening a chapter pops the whole browse stack
-(`Reader._close_browse`) and loads it in the reader. Screens talk to the app
+lazily; `n`/`p` page a list; `Enter` opens `DetailScreen` (book meta + full
+chapter list, seeded into the reader TOC cache); `Esc` pops back. On the
+detail screen `Enter` reads the selected chapter, `o` resumes (stable
+`pageId` -> position -> stored URL -> chapter 1 via
+`shelf.resolve_chapter`), and `s` toggles the shelf. Opening a chapter pops
+the whole browse stack (`Reader._close_browse`) and loads it in the reader. Screens talk to the app
 through `ui` / `display` / `open_book` / `open_chapter` / `catalog` /
 `browse_cache` / `browse_ui` only, so pilot tests inject a fake catalog and
 run without network. `z` is handled at screen level (re-render in place)

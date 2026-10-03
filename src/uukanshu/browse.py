@@ -18,6 +18,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import (
+    Button,
     Footer,
     Input,
     OptionList,
@@ -29,6 +30,7 @@ from textual.widgets.option_list import Option
 from rich.text import Text
 
 from .site import CATEGORIES, Card, CardPage
+from .shelf import resolve_chapter
 
 
 class PageCache:
@@ -243,7 +245,9 @@ class BookListPane(Vertical):
             self._preview(card)
 
     def on_option_list_option_selected(self, event) -> None:
-        self.app.open_book(int(str(event.option.id)))
+        bid = int(str(event.option.id))
+        card = next((c for c in self.cards if c.bid == bid), None)
+        self.app.open_book(bid, card)
 
 
 class BrowseScreen(Screen):
@@ -414,3 +418,206 @@ class BrowseScreen(Screen):
         pane.cards = []
         pane.load(force=True)
         pane.focus_list()
+
+
+class DetailScreen(Screen):
+    """Book detail: meta, actions, full chapter list.
+
+    Pushed from a catalogue card or shelf row. Enter on the chapter list
+    reads that chapter; o reads the bookmarked one (or chapter 1); s toggles
+    the shelf; Esc returns. See docs/ARCHITECTURE.md.
+    """
+
+    CSS = """
+    #detail-title { height: auto; padding: 1 2 0 2; text-style: bold; }
+    #detail-meta { height: auto; padding: 0 2; color: $text-muted; }
+    #detail-intro { height: auto; max-height: 8; padding: 0 2 1 2; }
+    #detail-actions { height: auto; padding: 0 2 1 2; }
+    #detail-actions Button { margin: 0 1 0 0; min-width: 12; }
+    #chapter-list { height: 1fr; margin: 0 1; }
+    """
+
+    BINDINGS = [
+        Binding("escape", "back", "back"),
+        Binding("o", "read", "read"),
+        Binding("s", "toggle_shelf", "shelf"),
+        Binding("r", "reload", "refresh"),
+        Binding("z", "toggle_simplified", "simplified"),
+    ]
+
+    def __init__(self, book_id: str | int, card: Card | None = None):
+        super().__init__()
+        self.book_id = str(book_id)
+        self.card = card
+        self.meta = None
+        self.chapters: list = []
+        self._error: str | None = None
+        self._loading = True
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Static("", id="detail-title")
+            yield Static("", id="detail-meta")
+            yield Static("", id="detail-intro")
+            with Horizontal(id="detail-actions"):
+                yield Button("", id="btn-read", variant="primary")
+                yield Button("", id="btn-shelf")
+                yield Button("", id="btn-back")
+            yield OptionList(id="chapter-list")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self._render_header()
+        self.fetch_detail()
+
+    # -- loading
+
+    @work(exclusive=True, group="book-detail")
+    async def fetch_detail(self) -> None:
+        try:
+            detail = await asyncio.to_thread(
+                self.app.catalog.book_detail, self.book_id)
+        except Exception as exc:
+            self._error = f"{type(exc).__name__}: {exc}"
+            self._loading = False
+            self._render_header()
+            return
+        self.meta = detail.meta
+        self.chapters = detail.chapters
+        self._loading = False
+        self._error = None
+        if detail.chapters:
+            # The reader's l key can then reuse this TOC instead of refetching.
+            self.app.seed_toc(self.book_id, detail.chapters)
+        self._render_header()
+        self._fill_chapters()
+        self.query_one("#chapter-list", OptionList).focus()
+
+    # -- rendering
+
+    def _display(self, s: str) -> str:
+        return self.app.display(s)
+
+    def _ui(self, s: str) -> str:
+        return self.app.ui(s)
+
+    def _read_label(self) -> str:
+        if self.app.shelf.get(self.book_id) is not None:
+            return self._ui("继续阅读")
+        return self._ui("开始阅读")
+
+    def _shelf_label(self) -> str:
+        if self.app.shelf.get(self.book_id) is not None:
+            return self._ui("移出书架")
+        return self._ui("加入书架")
+
+    def _render_header(self) -> None:
+        meta = self.meta
+        card = self.card
+        if meta:
+            title = meta.title
+        elif card:
+            title = card.title
+        else:
+            title = self.book_id
+        self.query_one("#detail-title", Static).update(self._display(title))
+        bits = []
+        if meta:
+            if meta.author:
+                bits.append(self._ui("作者") + "：" + self._display(meta.author))
+            for value in (meta.status, meta.category, meta.words):
+                if value:
+                    bits.append(self._display(value))
+            if meta.updated_at:
+                bits.append(self._ui("更新") + "：" + meta.updated_at)
+        elif card:
+            if card.author:
+                bits.append(self._ui("作者") + "：" + self._display(card.author))
+            if card.words:
+                bits.append(self._display(card.words))
+        if self._loading:
+            bits.append(self._ui("载入中…"))
+        if self._error is not None:
+            bits.append(self._ui("错误：") + self._error + "  ·  r "
+                        + self._ui("重试"))
+        self.query_one("#detail-meta", Static).update(" · ".join(bits))
+        intro = ""
+        if meta and meta.intro:
+            intro = self._display(meta.intro)
+        elif card and card.intro:
+            intro = self._display(card.intro)
+        self.query_one("#detail-intro", Static).update(intro)
+        self.query_one("#btn-read", Button).label = self._read_label()
+        self.query_one("#btn-shelf", Button).label = self._shelf_label()
+        self.query_one("#btn-back", Button).label = self._ui("返回")
+
+    def _fill_chapters(self) -> None:
+        ol = self.query_one("#chapter-list", OptionList)
+        ol.clear_options()
+        progress = self.app.shelf.get(self.book_id)
+        mark_id = progress.chapter_id if progress else 0
+        ol.add_options(
+            Option(f"{'▸' if ch.cid == mark_id else ' '} {ch.pos:>5}  "
+                   + self._display(ch.title), id=str(ch.cid))
+            for ch in self.chapters)
+        if self.chapters:
+            ol.highlighted = 0
+
+    def refresh_display(self) -> None:
+        """Re-render after a Simplified/Traditional toggle."""
+        self._render_header()
+        self._fill_chapters()
+
+    # -- actions
+
+    def action_back(self) -> None:
+        self.app.pop_screen()
+
+    def action_reload(self) -> None:
+        self._loading = True
+        self._error = None
+        self._render_header()
+        self.fetch_detail()
+
+    def action_read(self) -> None:
+        url = resolve_chapter(self.chapters, self.app.shelf.get(self.book_id))
+        if url is None:
+            self.notify(self._ui("没有找到章节") + " / no chapters",
+                        severity="warning")
+            return
+        self.app.open_chapter(url)
+
+    def action_toggle_shelf(self) -> None:
+        shelf = self.app.shelf
+        if shelf.get(self.book_id) is not None:
+            shelf.remove(self.book_id)
+            self.notify(self._ui("已移出书架") + " / removed")
+        else:
+            meta = self.meta
+            card = self.card
+            title = meta.title if meta else (card.title if card else "")
+            author = meta.author if meta else (card.author if card else "")
+            shelf.record(self.book_id, title=title, author=author)
+            self.notify(self._ui("已加入书架") + " / added")
+        self._render_header()
+
+    def action_toggle_simplified(self) -> None:
+        self.app.simplified = not self.app.simplified
+        self.refresh_display()
+
+    # -- events
+
+    def on_button_pressed(self, event) -> None:
+        if event.button.id == "btn-read":
+            self.action_read()
+        elif event.button.id == "btn-shelf":
+            self.action_toggle_shelf()
+        elif event.button.id == "btn-back":
+            self.action_back()
+
+    def on_option_list_option_selected(self, event) -> None:
+        cid = int(str(event.option.id))
+        chapter = next((c for c in self.chapters if c.cid == cid), None)
+        if chapter is not None:
+            self.app.open_chapter(chapter.url)
+
