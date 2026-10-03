@@ -16,6 +16,7 @@ live in [SCRAPING.md](SCRAPING.md).
 - `chapter_id(url)`, `absolutize(href, url)`: URL helpers (`site.py`); `book_url_from_arg(url)`: CLI-side book-URL normalizer (`__init__.py`).
 - `parse_cards(page)` / `parse_search_page(page)` / `parse_book_meta(page, url)`: browse cards (`bookbox`), search totals + single hits, book-detail headers. Class tokens, tags stripped. See [SCRAPING.md](SCRAPING.md).
 - `Catalog`: network facade (`recent_page` / `category_page` / `search_page` / `book_detail`); one user action = one fetch, injectable for UI tests. `CardPage` / `BookDetail` / `Card` / `BookMeta` are the browse data shapes. Book URLs accept `http(s)`, `www` (any case), trailing `/index.html`, redundant slashes collapsed, query/fragment stripped, host lowercased; chapter URLs stripped of pasted whitespace; chapter path match case-insensitive.
+- `shelf.py` — local bookshelf: one `Progress` per book, JSON + atomic replace, corrupt file reads empty (`UUKANSHU_DATA_DIR` override). `resolve_chapter()` resume order: stable `pageId` → TOC `position` → stored URL → chapter 1.
 - `TocScreen` / `TocOptionList`: modal chapter picker. Opens scrolled to current chapter (`scroll_to_highlight(top=True)`); `d/u` move half-page with selection.
 - `Reader(App)`: Textual reader. `load_chapter` (`@work exclusive, group="nav"`), `fetch_toc` (`group="toc"`), `check_update` (`group="update"`). Never raises into TUI — fetch errors render in-pane.
 - `run()` / `main()`: argparse CLI + `resolve_start_url()` + `_book_target()` shared URL-vs-`--book` validation + env helpers. `main()` forces UTF-8 stdio, maps `KeyboardInterrupt` → 130, `BrokenPipeError` → 0, `RuntimeError/OSError/UnicodeError` → `error: ...`.
@@ -43,6 +44,14 @@ live in [SCRAPING.md](SCRAPING.md).
 - `t`/`T` cycles the 8 `READER_THEMES` (`night` default); notifies `主题 / theme: <name>`.
 - `ui(s)`: chrome strings stored Simplified, converted via lazy `s2t` when in Traditional mode; content via lazy `t2s` when in Simplified mode. Missing dict or convert failure → fall back to raw, never crash in-app. `_render` falls back whole-triple; `_toc_converted` falls back per-title.
 - No whitelist post-pass on conversion (a prior one corrupted `土著` etc. — do not re-add).
+
+## Bookshelf
+
+`shelf.py` persists one `Progress` per book (JSON, atomic replace, corrupt
+file reads empty; a read-only data dir never crashes reading). The file
+lives in the platform data dir (`XDG_DATA_HOME` / `~/Library/Application
+Support` / `%APPDATA%`, overridden by `UUKANSHU_DATA_DIR`). No network, no
+server — progress stays on this machine.
 
 ## Config precedence
 
