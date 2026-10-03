@@ -9,6 +9,7 @@ site/f network details are in [SCRAPING.md](SCRAPING.md).
 
 | Path                            | What it is                                                                               |
 | ------------------------------- | ---------------------------------------------------------------------------------------- |
+| `src/uukanshu_main.py`          | PyInstaller entry point (imports the package; not shipped in the wheel)                   |
 | `src/uukanshu/site.py`          | Site contract: HTTPS fetching + HTML parsing (re-exported from the package)               |
 | `src/uukanshu/browse.py`        | Catalogue screens: recent / category / search tabs, card lists, page cache               |
 | `src/uukanshu/shelf.py`         | Local bookshelf: JSON reading-progress store (atomic, corrupt-tolerant)                  |
