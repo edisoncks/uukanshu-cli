@@ -17,6 +17,7 @@ site/network details are in [SCRAPING.md](SCRAPING.md).
 | `pyproject.toml`                | Package metadata, dependencies, the `uukanshu` entry point                               |
 | `uukanshu.spec`                 | PyInstaller spec for the standalone release binaries                                     |
 | `.github/workflows/release.yml` | Release pipeline: per-platform builds attached to a GitHub Release                       |
+| `.github/workflows/test.yml`    | Test pipeline: `uv run pytest` on every PR and push to `main`                            |
 | `assets/uukanshu.ico`           | Windows icon for the binary                                                              |
 | `uv.lock / .python-version`     | Pinned dependencies and Python 3.14 — must match CI (see below)                          |
 | `docs/`                         | All internals docs (this file + `ARCHITECTURE`, `SCRAPING`, `RELEASING`, `CONTRIBUTING`) |
@@ -45,6 +46,18 @@ lock breaks the release build — see [RELEASING.md](RELEASING.md).
 `mise.toml` pins the toolchain (`python = "3.14"`, `uv = "latest"`).
 The Python version matters for TLS fingerprinting — see
 [SCRAPING.md](SCRAPING.md#tls-fingerprinting).
+
+## Tests
+
+```sh
+uv run pytest
+```
+
+No network needed: catalogue/UI tests inject a fake catalogue and shelf, and
+`fetch()` is monkeypatched everywhere else. CI
+(`.github/workflows/test.yml`) runs this on every pull request and on pushes
+to `main`; `release.yml` only builds binaries on a `v*` tag, so the tests
+are the gate, not the release run.
 
 ## Install from source for daily use
 

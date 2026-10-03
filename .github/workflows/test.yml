@@ -1,0 +1,36 @@
+name: test
+
+# The only automated check of the code itself: release.yml runs on a v* tag
+# and only builds binaries. No network or secrets — catalogue/UI tests inject
+# a fake catalogue and shelf, and fetch() is monkeypatched elsewhere. Python
+# 3.14 matches .python-version and the release toolchain (DEVELOPMENT.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.14"
+
+      - name: Install the project
+        run: uv sync --frozen
+
+      - name: Run the tests
+        run: uv run --no-sync pytest -q

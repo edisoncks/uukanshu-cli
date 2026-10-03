@@ -30,3 +30,4 @@
 2. Real smoke: `uv run uukanshu --book 18957 --list` and one `--print` fetch.
 3. Links resolve (`../README.md`, `docs/*.md`, workflow path). Markdownlint clean (line-length off, inline HTML allowed).
 4. If you touched `fetch`/`chapter_list`/`extract_chapter`/`link`/updater: updated the relevant `docs/` table/contract.
+5. `uv run pytest` green — CI (`.github/workflows/test.yml`) runs it on every pull request and on pushes to `main`.
