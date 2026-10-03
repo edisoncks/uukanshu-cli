@@ -52,6 +52,12 @@ whitespace around `href = "..."` is tolerated (legal HTML).
 - Search pages carry `共有<b …> N </b>條結果`; `0` means no results. An
   exact-title hit redirects to the full book page (`og:type=novel`,
   `og:book_id`) — parsed as one card so the UI has a single shape.
+- **Search paging is upstream-unreliable**: the `_<n>.html` URLs are exactly
+  what the site's own pager links to, but for some keywords `page > 1`
+  returns the first page again while `pagestats` still shows the requested
+  page (verified live: identical 30 card ids for several keywords, others
+  page correctly). Nothing to parse around — keep the site's URL and surface
+  the pager as-is.
 - Book meta: `h1.booktitle`, `p.booktag` (`a.red` author, `span.blue`
   words/category, `span.red` status), `p.bookintro` (embeds an `<img>` —
   tags are stripped), `p.booktime`, `a.bookchapter`. Meta tags are read
@@ -78,6 +84,7 @@ Cloudflare scores the TLS ClientHello. Some Python/OpenSSL builds get 403 from r
 | `unsupported Content-Encoding` | CDN started `br`/`zstd` | Add decoder or force `identity` — never ignore |
 | Browse lists empty / missing fields | `bookbox` card markup changed | `parse_cards()` + `_BOOKBOX_RE` |
 | Search total wrong or single hit not detected | `/search` count or `og:*` meta changed | `parse_search_page()` + `_meta_map()` |
+| Search page 2+ repeats page 1 | Site's search backend ignores the `_<n>` suffix for some keywords | Upstream only — keep the site's own pager URL; never retry/reparse |
 | Book detail header empty | `booktitle`/`booktag`/`bookintro` renamed | `parse_book_meta()` |
 
 Keep request rate low (single fetch per navigation, 12h updater cache). If markup changed, update regexes + this table in the same commit — see [CONTRIBUTING.md](CONTRIBUTING.md).
