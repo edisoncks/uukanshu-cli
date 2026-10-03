@@ -154,6 +154,18 @@ def test_parse_book_meta():
     assert "<" not in meta.intro and "少年蘇辰" in meta.intro
 
 
+
+
+def test_parse_book_meta_author_scoped_to_booktag():
+    # A red anchor before the booktag (login/nav) must not become the author.
+    page = ('<a class="red" href="/login">登录</a>'
+            '<h1 class="booktitle">T</h1>'
+            '<p class="booktag"><a class="red" href="/author/x">RealAuthor</a>'
+            ' <span class="blue">1字</span></p>')
+    meta = site.parse_book_meta(page, site.BASE)
+    assert meta.author == "RealAuthor"
+
+
 def test_parse_book_meta_label_fallbacks():
     page = ('<h1>Title</h1>'
             '<p class="booktag">作者：Someone <span>123字</span></p>')

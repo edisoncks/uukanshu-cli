@@ -614,7 +614,9 @@ def parse_book_meta(page: str, url: str) -> BookMeta:
     tag_block = _BOOKTAG_RE.search(page)
     tag_html = tag_block.group(1) if tag_block else ""
     author = ""
-    red = _first_anchor_with_class(page, "red")
+    # Scope to the booktag block: the page can carry unrelated red anchors
+    # (login/nav) before it, and those must never win over the real author.
+    red = _first_anchor_with_class(tag_html, "red")
     if red:
         author = _text(red[1])
     if not author and tag_html:
