@@ -347,3 +347,13 @@ def test_href_spaces_around_equals():
         '<div class="readcotent">text<div class="mulu-box">x</div></div></html>',
         "https://uukanshu.cc/book/123/2.html")
     assert book == "B"
+
+
+def test_site_contract_reexported():
+    # Docs promise the package re-exports the whole site contract; callers
+    # and tests must not have to reach into uukanshu.site for browse shapes.
+    for name in ("Card", "CardPage", "BookMeta", "BookDetail", "CATEGORIES",
+                 "recent_url", "category_url", "search_url",
+                 "canonical_chapter_url", "parse_cards", "parse_page_stats",
+                 "parse_search_page", "parse_book_meta"):
+        assert getattr(u, name) is getattr(u.site, name), name
