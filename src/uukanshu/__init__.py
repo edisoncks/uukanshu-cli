@@ -369,7 +369,8 @@ class TocScreen(ModalScreen):
             yield Static(self.ui("章节目录 / Chapters — ↑↓/d/u · Enter jump · Esc close"),
                          id="tochead")
             yield LoadingIndicator(id="tocspin")
-            yield TocOptionList()
+            # Chapter titles are site text: never parsed as Rich markup.
+            yield TocOptionList(markup=False)
 
     def on_mount(self) -> None:
         self.query_one(OptionList).can_focus = True

@@ -160,6 +160,31 @@ def test_search_tab_idle_until_submitted(tmp_path):
     asyncio.run(go())
 
 
+def test_markup_like_search_keyword_renders_plain(tmp_path):
+    cat = FakeCatalog()
+    cat.searches[("[/b]x", 1)] = site.CardPage([card(7, "[/b]Book")], 1, 1, 1)
+    app = make_app(tmp_path, cat)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            await pilot.press("3")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.focused, Input))
+            inp = app.screen.query_one("#search-input", Input)
+            inp.value = "[/b]x"
+            await pilot.press("enter")
+            pane = app.screen.query_one("#pane-search", browse.BookListPane)
+            assert await wait_until(pilot, lambda: pane.cards)
+            # A Rich closing tag used to raise MarkupError in the worker.
+            status = str(pane.query_one(".list-status", Static).render())
+            assert "[/b]x" in status
+            ol = pane.query_one(".book-list", OptionList)
+            assert "[/b]Book" in str(ol.get_option_at_index(0).prompt)
+
+    asyncio.run(go())
+
+
 def test_category_select(tmp_path):
     cat = FakeCatalog()
     cat.categories[(2, 1)] = site.CardPage([card(9, "武侠书")], 1, 1, None)
@@ -283,6 +308,37 @@ def test_detail_toggle_shelf(tmp_path):
             assert app.shelf.get("1").title == "Book One"
             await pilot.press("s")
             assert app.shelf.get("1") is None
+
+    asyncio.run(go())
+
+
+def test_markup_like_detail_text_renders_plain(tmp_path):
+    cat = FakeCatalog()
+    cat.recent[1] = site.CardPage([card(1, "[/b]Book")], 1, 1, None)
+    cat.details["1"] = site.BookDetail(
+        site.BookMeta("[/b]Book", "[/i]Author", "1字", "玄幻奇幻", "連載",
+                      "Intro [/b] stays", "Latest", None, "2026-01-01"),
+        [u.Chapter(1, 10, "[/b]第一章", "u10")])
+    app = make_app(tmp_path, cat)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            pane = app.screen.query_one("#pane-recent", browse.BookListPane)
+            assert await wait_until(pilot, lambda: pane.cards)
+            await pilot.press("enter")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
+            assert await wait_until(pilot, lambda: app.screen.chapters)
+            screen = app.screen
+            assert "[/b]Book" in str(
+                screen.query_one("#detail-title", Static).render())
+            assert "[/i]Author" in str(
+                screen.query_one("#detail-meta", Static).render())
+            assert "Intro [/b] stays" in str(
+                screen.query_one("#detail-intro", Static).render())
+            ol = screen.query_one("#chapter-list", OptionList)
+            assert "[/b]第一章" in str(ol.get_option_at_index(0).prompt)
 
     asyncio.run(go())
 
@@ -519,6 +575,27 @@ def test_toc_half_page_still_works(tmp_path):
             # the chapter picker's own d/u must keep working.
             await pilot.press("d")
             assert await wait_until(pilot, lambda: ol.highlighted > 0)
+
+    asyncio.run(go())
+
+
+def test_toc_markup_like_title_renders_plain(tmp_path):
+    cat = FakeCatalog()
+    app = make_app(tmp_path, cat, url="https://uukanshu.cc/book/1/10.html")
+    app.load_chapter = lambda url: None
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            await pilot.pause(0.05)
+            screen = u.TocScreen(app.url)
+            await app.push_screen(screen)
+            await pilot.pause(0.05)
+            screen.populate([u.Chapter(1, 10, "[/b]Ch1", "u1"),
+                             u.Chapter(2, 20, "Ch2", "u2")])
+            await pilot.pause(0.05)
+            ol = screen.query_one(OptionList)
+            assert "[/b]Ch1" in str(ol.get_option_at_index(0).prompt)
+            await pilot.press("escape")
 
     asyncio.run(go())
 

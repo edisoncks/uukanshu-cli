@@ -107,9 +107,11 @@ class BookListPane(Vertical):
         return self
 
     def compose(self) -> ComposeResult:
-        yield Static("", classes="list-status")
-        yield OptionList(classes="book-list")
-        yield Static("", classes="preview")
+        # External text (the search keyword in the status line, card text)
+        # is plain: Rich-like markup in it must never reach a parser.
+        yield Static("", classes="list-status", markup=False)
+        yield OptionList(classes="book-list", markup=False)
+        yield Static("", classes="preview", markup=False)
 
     # -- rendering
 
@@ -315,7 +317,7 @@ class BrowseScreen(Screen):
                         yield OptionList(
                             *(Option(self._ui(name), id=str(cid))
                               for cid, name in CATEGORIES),
-                            id="category-list")
+                            id="category-list", markup=False)
                         yield BookListPane("category", id="pane-category")
                 with TabPane(self._tab_label(2), id="tab-search"):
                     with Vertical():
@@ -486,14 +488,16 @@ class DetailScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Vertical():
-            yield Static("", id="detail-title")
-            yield Static("", id="detail-meta")
-            yield Static("", id="detail-intro")
+            # Site text lands here (title/author/category/intro/chapters):
+            # render it plain, never as Rich markup.
+            yield Static("", id="detail-title", markup=False)
+            yield Static("", id="detail-meta", markup=False)
+            yield Static("", id="detail-intro", markup=False)
             with Horizontal(id="detail-actions"):
                 yield Button("", id="btn-read", variant="primary")
                 yield Button("", id="btn-shelf")
                 yield Button("", id="btn-back")
-            yield OptionList(id="chapter-list")
+            yield OptionList(id="chapter-list", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:
@@ -668,9 +672,9 @@ class ShelfPane(Vertical):
         self._loaded = False
 
     def compose(self) -> ComposeResult:
-        yield Static("", classes="list-status")
-        yield OptionList(classes="book-list")
-        yield Static("", classes="preview")
+        yield Static("", classes="list-status", markup=False)
+        yield OptionList(classes="book-list", markup=False)
+        yield Static("", classes="preview", markup=False)
 
     def ensure_loaded(self) -> "ShelfPane":
         if not self._loaded:
@@ -795,7 +799,7 @@ class ConfirmScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="confirm-box"):
-            yield Static(self.message)
+            yield Static(self.message, markup=False)
             with Horizontal(id="confirm-actions"):
                 yield Button(self.app.ui(self.confirm_label),
                              id="confirm-yes", variant="error")
