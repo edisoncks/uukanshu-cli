@@ -162,9 +162,10 @@ with <kbd>1</kbd>–<kbd>4</kbd> or by clicking a tab.
 In the **Search** tab, type a book title and press <kbd>Enter</kbd>. The
 **Categories** tab lists the ten site categories on the left.
 
-On a book page, <kbd>Enter</kbd> reads the selected chapter, <kbd>o</kbd>
-continues from your last position (or starts at chapter 1), and
-<kbd>s</kbd> adds or removes the book from your bookshelf. <kbd>Esc</kbd>
+On a book page, the chapter list opens on the chapter you stopped at
+(marked ▸), so <kbd>Enter</kbd> picks up where you left off;
+<kbd>o</kbd> continues from your last position (or starts at chapter 1),
+and <kbd>s</kbd> adds or removes the book from your bookshelf. <kbd>Esc</kbd>
 returns to the catalogue.
 
 ## Your bookshelf

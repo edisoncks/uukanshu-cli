@@ -469,9 +469,10 @@ class BrowseScreen(Screen):
 class DetailScreen(Screen):
     """Book detail: meta, actions, full chapter list.
 
-    Pushed from a catalogue card or shelf row. Enter on the chapter list
-    reads that chapter; o reads the bookmarked one (or chapter 1); s toggles
-    the shelf; Esc returns. See docs/ARCHITECTURE.md.
+    Pushed from a catalogue card or shelf row. The chapter list opens on
+    the bookmarked chapter, so a shelf book resumes where reading stopped;
+    Enter reads the selected chapter, o the bookmarked one (or chapter 1),
+    s toggles the shelf, Esc returns. See docs/ARCHITECTURE.md.
     """
 
     CSS = """
@@ -599,22 +600,46 @@ class DetailScreen(Screen):
         self.query_one("#btn-shelf", Button).label = self._shelf_label()
         self.query_one("#btn-back", Button).label = self._ui("返回")
 
-    def _fill_chapters(self) -> None:
-        ol = self.query_one("#chapter-list", OptionList)
-        ol.clear_options()
+    def _bookmark_row(self) -> int | None:
+        """TOC row of the shelf bookmark, or None when the book is unmarked.
+
+        Resolved by the same order `o` resumes in (`resolve_chapter`), so the
+        ▸ mark, the selected row and `o` all point at the same chapter.
+        """
         progress = self.app.shelf.get(self.book_id)
-        mark_id = progress.chapter_id if progress else 0
+        if progress is None:
+            return None
+        url = resolve_chapter(self.chapters, progress)
+        return next((i for i, ch in enumerate(self.chapters) if ch.url == url),
+                    None)
+
+    def _fill_chapters(self, keep_selection: bool = False) -> None:
+        """Rebuild the list; a fresh fill selects the bookmark.
+
+        Opening the detail of a shelf book must land on the chapter reading
+        stopped at (the ▸ row), not on chapter 1; a re-render (z toggle)
+        keeps the row the user had browsed to instead, so a held cursor
+        never jumps away under them.
+        """
+        ol = self.query_one("#chapter-list", OptionList)
+        previous = ol.highlighted
+        mark = self._bookmark_row()
+        ol.clear_options()
         ol.add_options(
-            Option(f"{'▸' if ch.cid == mark_id else ' '} {ch.pos:>5}  "
+            Option(f"{'▸' if i == mark else ' '} {ch.pos:>5}  "
                    + self._display(ch.title), id=str(ch.cid))
-            for ch in self.chapters)
-        if self.chapters:
-            ol.highlighted = 0
+            for i, ch in enumerate(self.chapters))
+        if not self.chapters:
+            return
+        if keep_selection and previous is not None:
+            ol.highlighted = min(previous, len(self.chapters) - 1)
+        else:
+            ol.highlighted = 0 if mark is None else mark
 
     def refresh_display(self) -> None:
         """Re-render after a Simplified/Traditional toggle."""
         self._render_header()
-        self._fill_chapters()
+        self._fill_chapters(keep_selection=True)
 
     # -- actions
 

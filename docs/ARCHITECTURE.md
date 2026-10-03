@@ -32,7 +32,9 @@ pops back. The fourth tab is `ShelfPane` (local shelf, newest read first;
 `d` removes with a `ConfirmScreen` modal). On the detail screen `Enter`
 reads the selected chapter, `o` resumes (stable `pageId` -> position ->
 stored URL -> chapter 1 via `shelf.resolve_chapter`), and `s` toggles the
-shelf. Opening a chapter pops the whole browse stack
+shelf. The chapter list lands on the bookmarked row (the ▸ mark) so a shelf
+book opens where reading stopped; a re-render (`z` toggle) keeps the
+browsed row selected instead. Opening a chapter pops the whole browse stack
 (`Reader._close_browse`) and loads it in the reader. Screens talk to the
 app through `ui` / `display` / `open_book` / `open_chapter` / `seed_toc` /
 `catalog` / `shelf` / `simplified` / `browse_cache` / `browse_ui`, so pilot
