@@ -462,6 +462,98 @@ def test_shelf_pane_enter_opens_detail(tmp_path):
     asyncio.run(go())
 
 
+def test_detail_opens_on_bookmarked_chapter(tmp_path):
+    """A shelf book opens its detail with the bookmarked row selected."""
+    cat = FakeCatalog()
+    cat.details["1"] = site.BookDetail(
+        meta("Book One"),
+        [u.Chapter(i, i * 10, f"c{i}",
+                   f"https://uukanshu.cc/book/1/{i * 10}.html")
+         for i in range(1, 4)])
+    app = make_app(tmp_path, cat)
+    app.shelf.record("1", title="Book One", chapter_pos=2, chapter_id=30,
+                     updated_at=100.0)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            await pilot.press("4")
+            pane = app.screen.query_one("#pane-shelf", browse.ShelfPane)
+            assert await wait_until(pilot, lambda: pane._rows)
+            await pilot.press("enter")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
+            assert await wait_until(pilot, lambda: app.screen.chapters)
+            ol = app.screen.query_one("#chapter-list", OptionList)
+            # Bookmark (pageId 30) is row 2, not chapter 1.
+            assert ol.highlighted == 2
+            seen = []
+            app.load_chapter = lambda url: seen.append(url)
+            await pilot.press("enter")
+            assert await wait_until(
+                pilot, lambda: seen == ["https://uukanshu.cc/book/1/30.html"])
+
+    asyncio.run(go())
+
+
+def test_detail_bookmark_row_follows_resume_order(tmp_path):
+    """No pageId on record: the TOC position decides, same as the o key."""
+    cat = FakeCatalog()
+    cat.details["1"] = site.BookDetail(
+        meta("Book One"),
+        [u.Chapter(i, i * 10, f"c{i}",
+                   f"https://uukanshu.cc/book/1/{i * 10}.html")
+         for i in range(1, 4)])
+    app = make_app(tmp_path, cat)
+    app.shelf.record("1", title="Book One", chapter_pos=2, updated_at=100.0)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            await pilot.press("4")
+            pane = app.screen.query_one("#pane-shelf", browse.ShelfPane)
+            assert await wait_until(pilot, lambda: pane._rows)
+            await pilot.press("enter")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
+            assert await wait_until(pilot, lambda: app.screen.chapters)
+            ol = app.screen.query_one("#chapter-list", OptionList)
+            assert ol.highlighted == 1
+
+    asyncio.run(go())
+
+
+def test_detail_keeps_browsed_row_on_toggle(tmp_path):
+    """z re-renders in place: the cursor must not jump back to the bookmark."""
+    cat = FakeCatalog()
+    cat.details["1"] = site.BookDetail(
+        meta("Book One"),
+        [u.Chapter(i, i * 10, f"c{i}",
+                   f"https://uukanshu.cc/book/1/{i * 10}.html")
+         for i in range(1, 4)])
+    app = make_app(tmp_path, cat)
+    app.shelf.record("1", title="Book One", chapter_id=30, updated_at=100.0)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            await pilot.press("4")
+            pane = app.screen.query_one("#pane-shelf", browse.ShelfPane)
+            assert await wait_until(pilot, lambda: pane._rows)
+            await pilot.press("enter")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
+            assert await wait_until(pilot, lambda: app.screen.chapters)
+            ol = app.screen.query_one("#chapter-list", OptionList)
+            await pilot.press("up")
+            await pilot.press("z")
+            assert ol.highlighted == 1
+            # The bookmark mark survives the re-render.
+            assert "▸" in str(ol.get_option_at_index(2).prompt)
+
+    asyncio.run(go())
+
+
 def test_shelf_pane_refreshes_after_detail_toggle(tmp_path):
     cat = FakeCatalog()
     cat.recent[1] = site.CardPage([card(1, "Book One")], 1, 1, None)
