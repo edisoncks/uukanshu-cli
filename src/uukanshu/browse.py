@@ -96,7 +96,8 @@ class BookListPane(Vertical):
         return f"search:{self.keyword}:{self.page}"
 
     def ensure_loaded(self) -> "BookListPane":
-        """Load once on first activation (tab switches are lazy)."""
+        """Load once on first activation (tab switches are lazy; the
+        search pane stays idle until its first keyword is submitted)."""
         if not self._loaded_once:
             self.load()
         return self
@@ -119,6 +120,8 @@ class BookListPane(Vertical):
                     + app.ui("重试"))
         if self._loading:
             return app.ui("载入中…") + " loading…"
+        if self.mode == "search" and not self.keyword.strip():
+            return app.ui("搜索") + " · " + app.ui("输入书名，按 Enter 搜索")
         label = {
             "recent": app.ui("最近更新"),
             "category": (app.ui("分类") + " · "
@@ -178,6 +181,12 @@ class BookListPane(Vertical):
     # -- loading
 
     def load(self, force: bool = False) -> None:
+        # The search tab is idle until a keyword is submitted: an empty
+        # POST draws the site's generic "hot books" page labelled as
+        # search results. See docs/ARCHITECTURE.md.
+        if self.mode == "search" and not self.keyword.strip():
+            self._refresh()
+            return
         self._loaded_once = True
         cache = getattr(self.app, "browse_cache", None)
         if cache is not None and not force:
@@ -353,9 +362,11 @@ class BrowseScreen(Screen):
             pane.ensure_loaded().focus_list()
             self._sync_category_highlight()
         elif pane_id == "tab-search":
-            self.query_one("#search-input", Input).value = (
-                self.app.browse_ui.get("query", ""))
-            self.query_one("#pane-search", BookListPane).ensure_loaded()
+            query = self.app.browse_ui.get("query", "")
+            self.query_one("#search-input", Input).value = query
+            pane = self.query_one("#pane-search", BookListPane)
+            pane.keyword = query
+            pane.ensure_loaded()
             self.query_one("#search-input", Input).focus()
         elif pane_id == "tab-shelf":
             self.query_one("#pane-shelf", ShelfPane).ensure_loaded().focus_list()

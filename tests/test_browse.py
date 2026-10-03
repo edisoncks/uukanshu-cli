@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import uukanshu as u
 from uukanshu import browse, site
 from uukanshu import shelf as sh
-from textual.widgets import Footer, Input, OptionList
+from textual.widgets import Footer, Input, OptionList, Static
 
 
 def card(bid, title="Book", **kw):
@@ -129,6 +129,33 @@ def test_search_submit(tmp_path):
             assert ("search", "斗罗", 1) in cat.calls
             assert pane.total == 3
             assert app.browse_ui["query"] == "斗罗"
+
+    asyncio.run(go())
+
+
+def test_search_tab_idle_until_submitted(tmp_path):
+    cat = FakeCatalog()
+    cat.searches[("斗罗", 1)] = site.CardPage([card(7, "斗罗大陆")], 1, 1, 3)
+    app = make_app(tmp_path, cat)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            await pilot.press("3")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.focused, Input))
+            await pilot.pause(0.2)
+            pane = app.screen.query_one("#pane-search", browse.BookListPane)
+            # Opening the tab must not POST an empty search.
+            assert all(call[0] != "search" for call in cat.calls)
+            assert pane.cards == [] and not pane._loaded_once
+            status = str(pane.query_one(".list-status", Static).render())
+            assert "搜索「」" not in status and "Enter" in status
+            inp = app.screen.query_one("#search-input", Input)
+            inp.value = "斗罗"
+            await pilot.press("enter")
+            assert await wait_until(pilot, lambda: pane.cards)
+            assert ("search", "斗罗", 1) in cat.calls
 
     asyncio.run(go())
 
