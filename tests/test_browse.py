@@ -278,6 +278,96 @@ def test_simplified_toggle_rerenders(tmp_path):
     asyncio.run(go())
 
 
+
+
+def test_reader_records_progress(tmp_path):
+    cat = FakeCatalog()
+    app = make_app(tmp_path, cat)
+    app.book_id = "1"
+    app.chapters_cache = [u.Chapter(1, 10, "a", "u10"),
+                          u.Chapter(2, 20, "b", "u20")]
+    app._cache_book = "1"
+    app._record_progress("Book One", "第二章",
+                         "https://uukanshu.cc/book/1/20.html")
+    p = app.shelf.get("1")
+    assert (p.title, p.chapter_id, p.chapter_pos, p.chapter_title) == (
+        "Book One", 20, 2, "第二章")
+    # Without a parsed TOC the pageId is still recorded and the previous
+    # position/title survive (resume prefers pageId anyway).
+    app.chapters_cache = None
+    app._cache_book = None
+    app._record_progress("", "第三章",
+                         "https://uukanshu.cc/book/1/30.html")
+    p = app.shelf.get("1")
+    assert (p.chapter_id, p.chapter_pos, p.title) == (30, 2, "Book One")
+
+
+def test_shelf_pane_lists_and_removes(tmp_path):
+    cat = FakeCatalog()
+    app = make_app(tmp_path, cat)
+    app.shelf.record("1", title="Book One", author="A", chapter_id=10,
+                     chapter_title="第一章", chapter_url="u10",
+                     updated_at=100.0)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            await pilot.press("4")
+            pane = app.screen.query_one("#pane-shelf", browse.ShelfPane)
+            assert await wait_until(pilot, lambda: pane._rows)
+            assert pane.query_one(".book-list", OptionList).option_count == 1
+            await pilot.press("d")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.ConfirmScreen))
+            await pilot.press("y")
+            assert await wait_until(pilot, lambda: app.shelf.get("1") is None)
+            assert await wait_until(pilot, lambda: not pane._rows)
+
+    asyncio.run(go())
+
+
+def test_shelf_pane_enter_opens_detail(tmp_path):
+    cat = FakeCatalog()
+    cat.details["1"] = site.BookDetail(
+        meta("Book One"), [u.Chapter(1, 10, "a", "u10")])
+    app = make_app(tmp_path, cat)
+    app.shelf.record("1", title="Book One", updated_at=100.0)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            await pilot.press("4")
+            pane = app.screen.query_one("#pane-shelf", browse.ShelfPane)
+            assert await wait_until(pilot, lambda: pane._rows)
+            await pilot.press("enter")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
+            assert app.screen.book_id == "1"
+
+    asyncio.run(go())
+
+
+def test_b_key_opens_browse(tmp_path):
+    cat = FakeCatalog()
+    app = make_app(tmp_path, cat, url="https://uukanshu.cc/book/1/10.html")
+    app.load_chapter = lambda url: None
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            await pilot.pause(0.05)
+            assert not isinstance(app.screen, browse.BrowseScreen)
+            await pilot.press("b")
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            # Nothing loaded: Esc must not leave an empty reader pane.
+            app._raw = None
+            app._load_error = None
+            await pilot.press("escape")
+            await pilot.pause(0.05)
+            assert _browse_screen(app)
+
+    asyncio.run(go())
+
+
 def test_mouse_click_opens_detail(tmp_path):
     cat = FakeCatalog()
     cat.recent[1] = site.CardPage([card(1, "Book One")], 1, 1, None)

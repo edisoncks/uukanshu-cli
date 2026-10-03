@@ -134,9 +134,9 @@ title at `https://uukanshu.cc/modules/article/search.php?q=<title>`.
 
 ## Browsing books
 
-Press <kbd>b</kbd> while reading to open the catalogue. It has three tabs —
-**Recently updated**, **Categories**, and **Search** — switch with
-<kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd> or by clicking a tab.
+Press <kbd>b</kbd> while reading to open the catalogue. It has four tabs —
+**Recently updated**, **Categories**, **Search**, and **Bookshelf** — switch
+with <kbd>1</kbd>–<kbd>4</kbd> or by clicking a tab.
 
 | Key                       | What it does                                |
 | ------------------------- | ------------------------------------------- |
@@ -156,6 +156,23 @@ On a book page, <kbd>Enter</kbd> reads the selected chapter, <kbd>o</kbd>
 continues from your last position (or starts at chapter 1), and
 <kbd>s</kbd> adds or removes the book from your bookshelf. <kbd>Esc</kbd>
 returns to the catalogue.
+
+## Your bookshelf
+
+The **Bookshelf** tab lists every book you have read, newest first, with the
+chapter you stopped at. Books are added automatically as soon as a chapter
+opens; you can also add or remove one from its book page with <kbd>s</kbd>.
+Press <kbd>Enter</kbd> on a shelf row to open the book page again, or
+<kbd>d</kbd> to remove it.
+
+Your reading progress is stored in one small file on your computer:
+
+- **Linux:** `~/.local/share/uukanshu/bookshelf.json`
+- **macOS:** `~/Library/Application Support/uukanshu/bookshelf.json`
+- **Windows:** `%APPDATA%\uukanshu\bookshelf.json`
+
+Set `UUKANSHU_DATA_DIR` to keep it somewhere else. Nothing is uploaded
+anywhere; the file is only ever read and written locally.
 
 ---
 

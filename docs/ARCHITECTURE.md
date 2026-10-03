@@ -26,7 +26,9 @@ live in [SCRAPING.md](SCRAPING.md).
 
 `browse.py` holds the catalogue UI pushed over the reader pane. Tabs load
 lazily; `n`/`p` page a list; `Enter` opens `DetailScreen` (book meta + full
-chapter list, seeded into the reader TOC cache); `Esc` pops back. On the
+chapter list, seeded into the reader TOC cache); `Esc` pops back. The
+fourth tab is `ShelfPane` (local shelf, newest read first; `d` removes with
+a `ConfirmScreen` modal). On the
 detail screen `Enter` reads the selected chapter, `o` resumes (stable
 `pageId` -> position -> stored URL -> chapter 1 via
 `shelf.resolve_chapter`), and `s` toggles the shelf. Opening a chapter pops
@@ -55,7 +57,8 @@ because the reader's own `z` refuses when no chapter is loaded.
 - Failed `load_chapter` keeps `url`/`_raw` at the last good chapter and records `_load_error`; `on_toc_choice` never sets `url` itself so a failed jump keeps highlighting the displayed chapter. `z` on an error pane re-renders the error in the new mode instead of resurrecting stale `_raw`.
 - `chapters_cache` + `_cache_book`: TOC seeded by CLI or `fetch_toc()`; stays raw, converted at render/populate time (OpenCC round-trips aren't lossless). `fetch_toc` captures `book_id` at open; a racing chapter nav (`n`/`→`, `p`/`←`) that changes `book_id` mid-flight only wastes one refetch on next open (`_cache_book != book_id`), never shows the wrong book. `self.screen is screen` guard prevents writing to a dismissed modal.
 - Chapter-nav keys (`n`/`→`, `p`/`←`) no-op on open modal; `None` next/prev → "end/start of book" notice.
-- `z` toggles `simplified`, re-renders `_raw` + TOC in place, preserves list position.
+- `z` toggles `simplified`, re-renders `_raw` + TOC in place, preserves list position. Browse/detail screens bind `z` themselves and re-render in place; the reader's own action refuses when nothing is loaded.
+- Successful `load_chapter` calls `_record_progress()` — one shelf bookmark per displayed chapter (pageId always, position when the TOC is cached). Failures never touch the shelf and never break reading.
 - `t`/`T` cycles the 8 `READER_THEMES` (`night` default); notifies `主题 / theme: <name>`.
 - `ui(s)`: chrome strings stored Simplified, converted via lazy `s2t` when in Traditional mode; content via lazy `t2s` when in Simplified mode. Missing dict or convert failure → fall back to raw, never crash in-app. `_render` falls back whole-triple; `_toc_converted` falls back per-title.
 - No whitelist post-pass on conversion (a prior one corrupted `土著` etc. — do not re-add).
