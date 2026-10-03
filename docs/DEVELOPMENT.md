@@ -3,7 +3,7 @@
 Notes for anyone working on `uukanshu` itself. Readers start at the
 [README](../README.md); cutting a release is in [RELEASING.md](RELEASING.md);
 how the code fits together is in [ARCHITECTURE.md](ARCHITECTURE.md);
-site/f network details are in [SCRAPING.md](SCRAPING.md).
+site/network details are in [SCRAPING.md](SCRAPING.md).
 
 ## Project layout
 
