@@ -2,18 +2,18 @@
 
 One-line flow: `CLI resolve -> fetch() -> parse -> Reader / --print / --list`.
 
-The whole app is one module (`src/uukanshu/__init__.py`, ~1100 lines) by
-design — small enough to hold in one file, no package overhead. Details on
-fetching/parsing live in [SCRAPING.md](SCRAPING.md).
+The app is a small package: `site.py` owns the site contract (fetching
++ parsing) and `__init__.py` owns the TUI + CLI. Details on fetching/parsing
+live in [SCRAPING.md](SCRAPING.md).
 
 ## Module map
 
-- `fetch(url) -> str`: plain HTTPS + browser headers + retries. See [SCRAPING.md](SCRAPING.md).
+- `site.py` — the site contract. `fetch(url) -> str`: plain HTTPS + browser headers + retries. See [SCRAPING.md](SCRAPING.md).
 - `_iter_anchors(page)`: single anchor source for `chapter_list`/`link`/breadcrumb. See [SCRAPING.md](SCRAPING.md).
 - `chapter_list(toc_page, book_id)`: regex TOC scan → `list[Chapter(pos, cid, title, url)]` (tuple-compatible NamedTuple). Keeps last occurrence per chapter (reading order), drops other-book links.
 - `extract_chapter(page, url)`: `(book, title, text, prev, toc, next)` via `readcotent` div + `mulu-box` cut. See [SCRAPING.md](SCRAPING.md).
 - `link(page, url, label)`: prev/TOC/next anchor → canonical chapter URL or `None` (= end-of-book notice). Host case-insensitive, query/fragment stripped, inner tags tolerated.
-- `chapter_id(url)`, `book_url_from_arg(url)`, `absolutize(href, url)`: URL helpers. Book URLs accept `http(s)`, `www` (any case), trailing `/index.html`, redundant slashes collapsed, query/fragment stripped, host lowercased; chapter URLs stripped of pasted whitespace; chapter path match case-insensitive.
+- `chapter_id(url)`, `absolutize(href, url)`: URL helpers (`site.py`); `book_url_from_arg(url)`: CLI-side book-URL normalizer (`__init__.py`). Book URLs accept `http(s)`, `www` (any case), trailing `/index.html`, redundant slashes collapsed, query/fragment stripped, host lowercased; chapter URLs stripped of pasted whitespace; chapter path match case-insensitive.
 - `TocScreen` / `TocOptionList`: modal chapter picker. Opens scrolled to current chapter (`scroll_to_highlight(top=True)`); `d/u` move half-page with selection.
 - `Reader(App)`: Textual reader. `load_chapter` (`@work exclusive, group="nav"`), `fetch_toc` (`group="toc"`), `check_update` (`group="update"`). Never raises into TUI — fetch errors render in-pane.
 - `run()` / `main()`: argparse CLI + `resolve_start_url()` + `_book_target()` shared URL-vs-`--book` validation + env helpers. `main()` forces UTF-8 stdio, maps `KeyboardInterrupt` → 130, `BrokenPipeError` → 0, `RuntimeError/OSError/UnicodeError` → `error: ...`.

@@ -9,7 +9,8 @@ site/f network details are in [SCRAPING.md](SCRAPING.md).
 
 | Path                            | What it is                                                                               |
 | ------------------------------- | ---------------------------------------------------------------------------------------- |
-| `src/uukanshu/__init__.py`      | The whole app in one module: fetching, parsing, reader UI, CLI                           |
+| `src/uukanshu/site.py`          | Site contract: HTTPS fetching + HTML parsing (re-exported from the package)               |
+| `src/uukanshu/__init__.py`      | Reader UI + CLI; re-exports `site` names so old callers keep working                      |
 | `pyproject.toml`                | Package metadata, dependencies, the `uukanshu` entry point                               |
 | `uukanshu.spec`                 | PyInstaller spec for the standalone release binaries                                     |
 | `.github/workflows/release.yml` | Release pipeline: per-platform builds attached to a GitHub Release                       |
@@ -17,12 +18,12 @@ site/f network details are in [SCRAPING.md](SCRAPING.md).
 | `uv.lock / .python-version`     | Pinned dependencies and Python 3.14 — must match CI (see below)                          |
 | `docs/`                         | All internals docs (this file + `ARCHITECTURE`, `SCRAPING`, `RELEASING`, `CONTRIBUTING`) |
 
-Inside the module — details in [ARCHITECTURE.md](ARCHITECTURE.md):
+Inside the package — details in [ARCHITECTURE.md](ARCHITECTURE.md):
 
-- `fetch()` — HTTPS fetch, gzip handling, retries. See [SCRAPING.md](SCRAPING.md).
-- `chapter_list()` / `extract_chapter()` / `link()` — site parsing. See [SCRAPING.md](SCRAPING.md).
-- `TocScreen` / `Reader` — Textual UI.
-- `run()` / `main()` — CLI entry, error handling.
+- `site.py` — `fetch()` (HTTPS, gzip, retries) and `chapter_list()` /
+  `extract_chapter()` / `link()` (site parsing). See [SCRAPING.md](SCRAPING.md).
+- `__init__.py` — `TocScreen` / `Reader` Textual UI and `run()` / `main()` CLI
+  entry + error handling; re-exports the `site` names.
 
 ## Setup
 
