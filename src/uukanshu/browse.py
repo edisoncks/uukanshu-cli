@@ -373,6 +373,10 @@ class BrowseScreen(Screen):
         elif pane_id == "tab-shelf":
             self.query_one("#pane-shelf", ShelfPane).ensure_loaded().focus_list()
 
+    def on_screen_resume(self) -> None:
+        """A detail/modal above may have edited the shelf: re-read it."""
+        self.query_one("#pane-shelf", ShelfPane).reload_if_loaded()
+
     def _sync_category_highlight(self) -> None:
         cid = str(self.app.browse_ui.get("category", 1))
         ol = self.query_one("#category-list", OptionList)
@@ -678,6 +682,13 @@ class ShelfPane(Vertical):
 
     def ensure_loaded(self) -> "ShelfPane":
         if not self._loaded:
+            self.load()
+        return self
+
+    def reload_if_loaded(self) -> "ShelfPane":
+        """Re-read already-shown rows (a pushed screen may have edited the
+        shelf); a never-opened pane stays lazy."""
+        if self._loaded:
             self.load()
         return self
 
