@@ -79,9 +79,11 @@ from urllib.parse import urlsplit, urlunsplit
 
 # Site contract re-exported so existing callers/tests keep working
 # (`uukanshu.fetch`, `uukanshu.Chapter`, `uukanshu.chapter_list`, ...).
+from .browse import BrowseScreen, PageCache
 from .site import (
     BASE,
     HEADERS,
+    Catalog,
     Chapter,
     _ANCHOR_RE,
     _CHAPTER_PATH,
@@ -97,6 +99,7 @@ from .site import (
     fetch,
     link,
 )
+from .shelf import Shelf
 
 from textual import work
 from textual.app import App, ComposeResult
@@ -447,15 +450,16 @@ class Reader(App):
         Binding("right", "next", show=False),
         Binding("left", "prev", show=False),
         Binding("l", "list", "chapters"),
+        Binding("b", "browse", "browse"),
         Binding("z", "toggle_simplified", "simplified"),
         Binding("t", "cycle_theme", "theme", key_display="t/T"),
         Binding("T", "cycle_theme_reverse", show=False),
         Binding("q", "quit", "quit"),
     ]
 
-    def __init__(self, url: str, cc, simplified: bool, pad: int,
+    def __init__(self, url: str | None, cc, simplified: bool, pad: int,
                  theme: str = "night", chapters=None,
-                 update_check: bool = True):
+                 update_check: bool = True, *, catalog=None, shelf=None):
         super().__init__()
         for t in READER_THEMES:
             self.register_theme(t)
@@ -463,6 +467,12 @@ class Reader(App):
         self.url = url
         self.pad = pad
         self._update_check_enabled = update_check
+        # Catalogue access + local bookshelf are injectable so UI tests run
+        # without network or real user data. See docs/ARCHITECTURE.md.
+        self.catalog = catalog if catalog is not None else Catalog()
+        self.shelf = shelf if shelf is not None else Shelf()
+        self.browse_cache = PageCache()
+        self.browse_ui = {"tab": 0, "category": 1, "query": ""}
         self.simplified = simplified  # display mode, independent of cc
         self._t2s = cc    # t2s converter (reused from CLI when -z; built lazily otherwise)
         self._t2s_failed = False  # t2s load failed; don't retry every keystroke
@@ -471,7 +481,7 @@ class Reader(App):
         self._raw = None  # raw (book, title, text) of the last fetched chapter
         self._load_error = None  # raw "Type: msg" of last failed load, re-rendered via ui()
         self.next_url = self.prev_url = None
-        m = re.search(r"/book/(\d+)/", url)
+        m = re.search(r"/book/(\d+)/", url or "")
         self.book_id = m.group(1) if m else None
         self.chapters_cache = chapters  # TOC may already be parsed by the CLI
         self._cache_book = self.book_id if chapters is not None else None
@@ -484,7 +494,10 @@ class Reader(App):
     def on_mount(self) -> None:
         doc = self.query_one("#doc", Static)
         doc.styles.padding = (self.pad, self.pad)
-        self.load_chapter(self.url)
+        if self.url:
+            self.load_chapter(self.url)
+        else:
+            self.push_screen(BrowseScreen())
         self.check_update()
 
     @work(exclusive=True, group="update")
@@ -548,6 +561,19 @@ class Reader(App):
         except Exception:
             return s
 
+    def display(self, s: str) -> str:
+        """Content string in the current display mode (raw when Traditional).
+        Convert failures fall back to raw — never raise into the TUI."""
+        if not self.simplified:
+            return s
+        conv = self._conv_t2s()
+        if conv is None:
+            return s
+        try:
+            return conv.convert(s)
+        except Exception:
+            return s
+
     def _render(self, book, title, text):
         """Render the given (raw) chapter content in the current mode.
         Convert failures fall back to raw — never raise into the TUI."""
@@ -608,7 +634,7 @@ class Reader(App):
 
     @property
     def modal(self) -> bool:
-        return isinstance(self.screen, TocScreen)
+        return isinstance(self.screen, (TocScreen, BrowseScreen))
 
     def action_next(self) -> None:
         if self.modal:
@@ -625,6 +651,47 @@ class Reader(App):
             self.load_chapter(self.prev_url)
         else:
             self.notify(self.ui("已是第一章") + " / start of book", severity="warning")
+
+    # -- catalogue actions
+
+    def action_browse(self) -> None:
+        if self.modal:
+            return
+        self.push_screen(BrowseScreen())
+
+    @work(exclusive=True, group="open-book")
+    async def open_book(self, book_id) -> None:
+        """Open a book from the catalogue at its first chapter."""
+        try:
+            detail = await asyncio.to_thread(self.catalog.book_detail, book_id)
+        except Exception as exc:
+            self.notify(self.ui("打开失败：")
+                        + f"{type(exc).__name__}: {exc}", severity="error")
+            return
+        if not detail.chapters:
+            self.notify(self.ui("没有找到章节") + " / no chapters",
+                        severity="error")
+            return
+        self.seed_toc(book_id, detail.chapters)
+        self.open_chapter(detail.chapters[0].url)
+
+    def seed_toc(self, book_id, chapters) -> None:
+        """Seed the reader TOC cache (a detail fetch already parsed it)."""
+        try:
+            self._cache_book = str(int(book_id))
+        except (TypeError, ValueError):
+            self._cache_book = str(book_id)
+        self.chapters_cache = chapters
+
+    def open_chapter(self, url: str) -> None:
+        """Load a chapter and return to the reader pane (pop browse stack)."""
+        self.load_chapter(url)
+        self._close_browse()
+
+    @work(exclusive=True, group="browse-close")
+    async def _close_browse(self) -> None:
+        while len(self.screen_stack) > 1:
+            await self.pop_screen()
 
     def action_toggle_simplified(self) -> None:
         # Error pane re-renders in the new mode instead of resurrecting

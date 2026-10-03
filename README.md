@@ -123,11 +123,34 @@ title at `https://uukanshu.cc/modules/article/search.php?q=<title>`.
 | <kbd>n</kbd> / <kbd>→</kbd>     | Next chapter                                                 |
 | <kbd>p</kbd> / <kbd>←</kbd>     | Previous chapter                                             |
 | <kbd>l</kbd>                    | Chapter list — <kbd>Enter</kbd> jumps, <kbd>Esc</kbd> closes |
+| <kbd>b</kbd>                    | Browse the catalogue (see below)                            |
 | <kbd>d</kbd> / <kbd>u</kbd>     | Half a page down / up                                        |
 | <kbd>↑</kbd> / <kbd>↓</kbd>, PgUp/PgDn, Home/End | Scroll                                         |
 | <kbd>z</kbd>                    | Switch Traditional / Simplified Chinese                      |
 | <kbd>t</kbd> / <kbd>T</kbd>     | Change color theme (forward / backward)                      |
 | <kbd>q</kbd>                    | Quit                                                         |
+
+---
+
+## Browsing books
+
+Press <kbd>b</kbd> while reading to open the catalogue. It has three tabs —
+**Recently updated**, **Categories**, and **Search** — switch with
+<kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd> or by clicking a tab.
+
+| Key                       | What it does                                |
+| ------------------------- | ------------------------------------------- |
+| <kbd>↑</kbd>/<kbd>↓</kbd>, mouse wheel | Pick a book                      |
+| <kbd>Enter</kbd>          | Open the selected book (starts at chapter 1)|
+| <kbd>n</kbd> / <kbd>→</kbd> | Next page of the list                     |
+| <kbd>p</kbd> / <kbd>←</kbd> | Previous page                             |
+| <kbd>/</kbd>              | Jump to the search box                      |
+| <kbd>r</kbd>              | Refresh the list                            |
+| <kbd>Esc</kbd>            | Back to reading                             |
+| <kbd>q</kbd>              | Quit                                        |
+
+In the **Search** tab, type a book title and press <kbd>Enter</kbd>. The
+**Categories** tab lists the ten site categories on the left.
 
 ---
 
