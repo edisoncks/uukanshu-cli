@@ -430,6 +430,35 @@ def test_shelf_pane_enter_opens_detail(tmp_path):
     asyncio.run(go())
 
 
+def test_shelf_pane_refreshes_after_detail_toggle(tmp_path):
+    cat = FakeCatalog()
+    cat.recent[1] = site.CardPage([card(1, "Book One")], 1, 1, None)
+    cat.details["1"] = site.BookDetail(
+        meta("Book One"),
+        [u.Chapter(1, 10, "第一章", "https://uukanshu.cc/book/1/10.html")])
+    app = make_app(tmp_path, cat)
+    app.shelf.record("1", title="Book One", updated_at=100.0)
+
+    async def go():
+        async with app.run_test(size=(100, 32)) as pilot:
+            assert await wait_until(pilot, lambda: _browse_screen(app))
+            await pilot.press("4")
+            pane = app.screen.query_one("#pane-shelf", browse.ShelfPane)
+            assert await wait_until(pilot, lambda: pane._rows)
+            await pilot.press("enter")
+            assert await wait_until(
+                pilot, lambda: isinstance(app.screen, browse.DetailScreen))
+            assert await wait_until(pilot, lambda: app.screen.chapters)
+            await pilot.press("s")
+            assert app.shelf.get("1") is None
+            await pilot.press("escape")
+            # Popping the detail screen must refresh the loaded shelf pane.
+            assert await wait_until(pilot, lambda: not pane._rows)
+            assert pane.query_one(".book-list", OptionList).option_count == 0
+
+    asyncio.run(go())
+
+
 def test_b_key_opens_browse(tmp_path):
     cat = FakeCatalog()
     app = make_app(tmp_path, cat, url="https://uukanshu.cc/book/1/10.html")
