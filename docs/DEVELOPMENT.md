@@ -109,7 +109,7 @@ uukanshu [url] [--book ID] [--chapter N] [--list] [--simplified]
 | ---- | ----------- | ----- |
 | `url` | — | Chapter or book URL. Must start with `http://` / `https://`. Book URLs match `.../book/<ID>/` or `.../book/<ID>/index.html` (query/fragment ignored). |
 | `-b`, `--book <ID>` | — | Book ID from `/book/<ID>/`. Whitespace stripped. Conflicts with `url` → error. |
-| `-c`, `--chapter N` | — | 1-based TOC position, range-checked. Ignored with `--list` → error. Ignored with chapter URL → error. |
+| `-c`, `--chapter N` | — | 1-based TOC position, range-checked. Needs a book URL or `--book` (bare `--chapter` → error). Ignored with `--list` → error. Ignored with chapter URL → error. |
 | `-l`, `--list` | — | Needs book URL or `--book`. Conflicts with `--chapter` / `--print` → error. Prints `pos + title`. |
 | `-z`, `--simplified` | `UUKANSHU_SIMPLIFIED=1` | Builds `opencc.OpenCC("t2s")` at startup; missing dict → `error: ...`. |
 | `--pad N` | `UUKANSHU_PAD` (default `2`, `>=0`) | Non-number / negative → clean `error:`, not traceback. Passed to Textual padding. |
@@ -120,5 +120,6 @@ uukanshu [url] [--book ID] [--chapter N] [--list] [--simplified]
 
 Resolution order (`resolve_start_url`): book URL → chapter URL → `--book`.
 Returns `(chapter_url, chapters)` where `chapters` seeds the reader's TOC
-cache so the first `l` press doesn't refetch. See
+cache so the first `l` press doesn't refetch. A bare launch (no URL and no
+`--book`) skips resolution and opens the browse screen instead. See
 [ARCHITECTURE.md](ARCHITECTURE.md).

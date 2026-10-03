@@ -90,8 +90,17 @@ shown so the examples below work:
 
 ### 3. Pick something to read
 
-The easiest way: open [uukanshu.cc](https://uukanshu.cc) in your browser,
-find a book you like, copy its **book address** (looks like
+The easiest way: run the program with no address at all. It opens the
+catalogue — recently updated books, categories, search, and your
+bookshelf — where you pick with the arrow keys or the mouse:
+
+```sh
+./uukanshu                            # Mac / Linux
+.\uukanshu.exe                        # Windows
+```
+
+Or open [uukanshu.cc](https://uukanshu.cc) in your browser, find a book you
+like, copy its **book address** (looks like
 `https://uukanshu.cc/book/18957/`), and paste it after the program name.
 Reading starts at chapter 1:
 
@@ -187,6 +196,7 @@ uukanshu [chapter URL] [options]
 
 | Option               | What it does                                                               |
 | -------------------- | -------------------------------------------------------------------------- |
+| *(no address)*       | Open the catalogue home (browse screen)                                    |
 | `URL`                | Chapter address to open, **or** a book address to start at chapter 1       |
 | `-b`, `--book <ID>`  | Open a book by its number (starts at chapter 1)                            |
 | `-c`, `--chapter N`  | Which chapter to open (default: 1)                                         |
