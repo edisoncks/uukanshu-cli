@@ -16,7 +16,7 @@ import urllib.error
 import urllib.request
 import zlib
 from typing import NamedTuple
-from urllib.parse import quote, urljoin, urlsplit
+from urllib.parse import quote, urlencode, urljoin, urlsplit
 
 BASE = "https://uukanshu.cc"
 
@@ -58,13 +58,22 @@ def _retryable(exc: BaseException) -> bool:
     return True
 
 
-def fetch(url: str) -> str:
-    """Fetch a uukanshu page over plain HTTPS and return its HTML."""
+def fetch(url: str, data: bytes | None = None) -> str:
+    """Fetch a uukanshu page over plain HTTPS and return its HTML.
+
+    data, when given, makes it a POST (search) and sets the form content
+    type; retries, gzip handling, and the Cloudflare sniff are shared with
+    GET. See SCRAPING.md.
+    """
     page = None
     last_exc = None
+    headers = HEADERS
+    if data is not None:
+        headers = {**HEADERS,
+                   "Content-Type": "application/x-www-form-urlencoded"}
     for attempt in range(3):
         try:
-            req = urllib.request.Request(url, headers=HEADERS)
+            req = urllib.request.Request(url, data=data, headers=headers)
             with urllib.request.urlopen(req, timeout=30,
                                         context=_SSL_CONTEXT) as r:
                 # Only gzip/identity are supported: no Accept-Encoding is
@@ -635,6 +644,66 @@ def parse_book_meta(page: str, url: str) -> BookMeta:
         latest_url = canonical_chapter_url(chapter[0], url)
     return BookMeta(title, author, words, category, status, intro,
                     latest_title, latest_url, updated_at)
+
+
+class CardPage(NamedTuple):
+    """One catalogue page: cards + pager position + search total."""
+    cards: list[Card]
+    page: int
+    pages: int
+    total: int | None
+
+
+class BookDetail(NamedTuple):
+    """Book-detail header + full TOC, from one /book/<id>/ fetch."""
+    meta: BookMeta
+    chapters: list[Chapter]
+
+
+class Catalog:
+    """Network facade over the catalogue pages.
+
+    One user action = one fetch (no prefetch), so the browse UI can inject a
+    fake with the same four methods in tests. See docs/ARCHITECTURE.md.
+    """
+
+    def recent_page(self, page: int = 1) -> CardPage:
+        html = fetch(recent_url(page))
+        stats = parse_page_stats(html)
+        return CardPage(parse_cards(html),
+                        stats[0] if stats else page,
+                        stats[1] if stats else page, None)
+
+    def category_page(self, cid: int, page: int = 1) -> CardPage:
+        html = fetch(category_url(cid, page))
+        stats = parse_page_stats(html)
+        return CardPage(parse_cards(html),
+                        stats[0] if stats else page,
+                        stats[1] if stats else page, None)
+
+    def search_page(self, keyword: str, page: int = 1) -> CardPage:
+        if page <= 1:
+            # Page 1 is a POST; later pages are plain GETs of the quoted
+            # keyword URL (verified live). See SCRAPING.md.
+            data = urlencode({"searchkey": keyword,
+                              "searchtype": "all"}).encode()
+            html = fetch(f"{BASE}/search", data=data)
+            shown = 1
+        else:
+            html = fetch(search_url(keyword, page))
+            shown = page
+        stats = parse_page_stats(html)
+        total, cards = parse_search_page(html)
+        return CardPage(cards,
+                        stats[0] if stats else shown,
+                        stats[1] if stats else shown, total)
+
+    def book_detail(self, book_id: str | int) -> BookDetail:
+        url = f"{BASE}/book/{int(book_id)}/"
+        html = fetch(url)
+        return BookDetail(parse_book_meta(html, url),
+                          chapter_list(html, str(int(book_id))))
+
 
 
 

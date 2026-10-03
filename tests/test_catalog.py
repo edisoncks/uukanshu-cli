@@ -168,3 +168,98 @@ def test_canonical_chapter_url():
     assert site.canonical_chapter_url(
         "https://other.cc/book/1/2.html", site.BASE) is None
     assert site.canonical_chapter_url("/book/1/", site.BASE) is None
+
+SEARCH_PAGE = (
+    '<h2>搜索「<b class="hottext">斗羅</b>」，共有'
+    '<b class="hottext"> 200 </b>條結果</h2>'
+    '<em id="pagestats">1/7</em>' + BOX1
+)
+
+
+def test_fetch_post_sets_form_content_type(monkeypatch):
+    seen = {}
+
+    class Resp:
+        headers: dict = {}
+
+        def read(self, n=-1):
+            return b"<html>ok</html>"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(req, timeout=None, context=None):
+        seen["req"] = req
+        return Resp()
+
+    monkeypatch.setattr(site.urllib.request, "urlopen", fake_urlopen)
+    body = site.fetch("https://uukanshu.cc/search",
+                      data=b"searchkey=x&searchtype=all")
+    assert body == "<html>ok</html>"
+    req = seen["req"]
+    assert req.get_method() == "POST"
+    assert req.data == b"searchkey=x&searchtype=all"
+    assert req.get_header("Content-type") == (
+        "application/x-www-form-urlencoded")
+
+
+def test_catalog_search_posts_then_gets(monkeypatch):
+    calls = []
+
+    def fake_fetch(url, data=None):
+        calls.append((url, data))
+        return SEARCH_PAGE
+
+    monkeypatch.setattr(site, "fetch", fake_fetch)
+    cat = site.Catalog()
+    page = cat.search_page("斗罗")
+    assert calls[0][0] == "https://uukanshu.cc/search"
+    assert calls[0][1] == b"searchkey=%E6%96%97%E7%BD%97&searchtype=all"
+    assert (page.page, page.pages, page.total) == (1, 7, 200)
+    assert [c.bid for c in page.cards] == [27544]
+    cat.search_page("斗罗", 2)
+    assert calls[1] == (
+        "https://uukanshu.cc/search/%E6%96%97%E7%BD%97_2.html", None)
+
+
+def test_catalog_recent_and_category(monkeypatch):
+    calls = []
+
+    def fake_fetch(url, data=None):
+        calls.append(url)
+        return "<html>" + BOX1 + '<em id="pagestats">3/900</em></html>'
+
+    monkeypatch.setattr(site, "fetch", fake_fetch)
+    cat = site.Catalog()
+    recent = cat.recent_page(3)
+    assert calls[0] == "https://uukanshu.cc/top/lastupdate_3.html"
+    assert (recent.page, recent.pages, recent.total) == (3, 900, None)
+    assert recent.cards[0].bid == 27544
+    cat.category_page(5, 2)
+    assert calls[1] == "https://uukanshu.cc/class_5_2.html"
+
+
+def test_catalog_pager_fallback(monkeypatch):
+    monkeypatch.setattr(site, "fetch", lambda url, data=None: "<html></html>")
+    page = site.Catalog().recent_page(4)
+    assert page.cards == []
+    assert (page.page, page.pages, page.total) == (4, 4, None)
+
+
+def test_catalog_book_detail(monkeypatch):
+    page_html = BOOK_PAGE + (
+        '<a href="/book/22532/1.html">第一章</a>'
+        '<a href="/book/22532/2.html">第二章</a>')
+
+    def fake_fetch(url, data=None):
+        assert url == "https://uukanshu.cc/book/22532/"
+        return page_html
+
+    monkeypatch.setattr(site, "fetch", fake_fetch)
+    detail = site.Catalog().book_detail("22532")
+    assert detail.meta.title == "吞噬古帝"
+    assert {c.cid for c in detail.chapters} >= {1, 2, 17876772}
+

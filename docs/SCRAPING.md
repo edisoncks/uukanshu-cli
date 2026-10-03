@@ -38,7 +38,8 @@ whitespace around `href = "..."` is tolerated (legal HTML).
 - Recently updated: `GET /top/lastupdate_<page>.html`; categories:
   `GET /class_<id>_<page>.html` (ids 1–10, fixed `CATEGORIES`); search:
   `POST /search` with fields `searchkey` + `searchtype=all` (results page 1),
-  later pages `GET /search/<quote(keyword)>_<page>.html`.
+  later pages `GET /search/<quote(keyword)>_<page>.html`. `fetch(url, data=...)`
+  sends the form body as `application/x-www-form-urlencoded`.
 - 30 cards per page. The pager carries `<em id="pagestats">p/total</em>`
   (absent on pages without a pager → `parse_page_stats()` returns `None`).
 - Card: `div.bookbox` → `h4.bookname > a` (book id), `div.author` rows
