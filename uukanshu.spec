@@ -6,6 +6,8 @@
 # Notes:
 #   * PyInstaller cannot cross-compile: build each platform's binary ON that
 #     platform (the release workflow runs this spec on ubuntu/macos/windows).
+#   * The entry script imports the package (relative imports inside
+#     uukanshu/ cannot run as a top-level script).
 #   * opencc ships dictionary data files and textual ships .tcss styles that
 #     static analysis misses, hence the collect_all() calls.
 #   * console=True keeps stdin/stdout so the TUI works in a normal terminal.
@@ -23,7 +25,7 @@ for pkg in ("opencc", "textual"):
     hiddenimports += h
 
 a = Analysis(
-    [os.path.join("src", "uukanshu", "__init__.py")],
+    [os.path.join("src", "uukanshu_main.py")],
     pathex=[os.path.join("src")],
     binaries=binaries,
     datas=datas,
