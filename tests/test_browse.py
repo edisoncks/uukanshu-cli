@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import uukanshu as u
 from uukanshu import browse, site
 from uukanshu import shelf as sh
-from textual.widgets import Input, OptionList
+from textual.widgets import Footer, Input, OptionList
 
 
 def card(bid, title="Book", **kw):
@@ -425,7 +425,7 @@ def test_footer_hides_reader_keys_on_browse(tmp_path):
     asyncio.run(go())
 
 
-def test_reader_footer_shows_navigation_and_escape_opens_browse(tmp_path):
+def test_reader_footer_shows_escape_and_opens_browse(tmp_path):
     cat = FakeCatalog()
     app = make_app(tmp_path, cat, url="https://uukanshu.cc/book/1/10.html")
     app.load_chapter = lambda url: None
@@ -435,8 +435,14 @@ def test_reader_footer_shows_navigation_and_escape_opens_browse(tmp_path):
             await pilot.pause(0.05)
             actions = _actions(app.screen)
             assert actions.get("l") == "list"
+            # Both keys stay bound (b is an alias), but the Footer renders
+            # only the first binding per action, so esc must be the one shown.
             assert actions.get("b") == "browse"
             assert actions.get("escape") == "browse"
+            rendered = [c.key for c in app.query_one(Footer).children
+                        if hasattr(c, "key")]
+            assert "escape" in rendered
+            assert "b" not in rendered
             await pilot.press("escape")
             assert await wait_until(pilot, lambda: _browse_screen(app))
 

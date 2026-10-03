@@ -143,7 +143,7 @@ title at `https://uukanshu.cc/modules/article/search.php?q=<title>`.
 
 ## Browsing books
 
-Press <kbd>b</kbd> while reading to open the catalogue. It has four tabs —
+Press <kbd>Esc</kbd> (or <kbd>b</kbd>) while reading to open the catalogue. It has four tabs —
 **Recently updated**, **Categories**, **Search**, and **Bookshelf** — switch
 with <kbd>1</kbd>–<kbd>4</kbd> or by clicking a tab.
 
